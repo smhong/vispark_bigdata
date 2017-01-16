@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import time
 import math
 import sys
@@ -9,7 +8,8 @@ from mpi4py import MPI
 import os
 SPARK_HOME=os.environ["SPARK_HOME"]
 PYSPARK_PATH = "%s/python/"%SPARK_HOME
-PY4J_PATH ="%s/python/lib/py4j-0.8.2.1-src.zip"%SPARK_HOME
+#PY4J_PATH ="%s/python/lib/py4j-0.8.2.1-src.zip"%SPARK_HOME
+PY4J_PATH ="%s/python/lib/py4j-0.10.4-src.zip"%SPARK_HOME
 
 #print PYSPARK_PATH
 #print PY4J_PATH
@@ -55,7 +55,8 @@ if PY4J_PATH not in sys.path:
     sys.path.append(PY4J_PATH)
 
 
-from gpu_worker import gpu_run, gpu_htod, gpu_dtoh, \
+#from gpu_worker import gpu_run, gpu_htod, gpu_dtoh, \
+from pyspark.vislib.gpu_worker import gpu_run, gpu_htod, gpu_dtoh, \
                        extract_halo_gpu, append_halo_gpu ,extract_halo_cpu, append_halo_cpu, \
                        reading_args, reshape_data, \
                        check_device_mem, \
@@ -73,7 +74,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-logging = False
+logging = True
 
 def print_green(source):
     if logging:

@@ -42,6 +42,13 @@ from pyspark.traceback_utils import CallSite, first_spark_call
 from pyspark.status import StatusTracker
 from pyspark.profiler import ProfilerCollector, BasicProfiler
 
+###########################
+# HVCL Sumin 
+###########################
+# import Vispark RDD
+from pyspark.vislib.vispark import VisparkRDD
+
+
 if sys.version > '3':
     xrange = range
 
@@ -111,6 +118,8 @@ class SparkContext(object):
             ...
         ValueError:...
         """
+        print ("Hello Spark")       
+ 
         self._callsite = first_spark_call() or CallSite(None, None, None)
         SparkContext._ensure_initialized(self, gateway=gateway, conf=conf)
         try:
@@ -504,9 +513,12 @@ class SparkContext(object):
         minPartitions = minPartitions or min(self.defaultParallelism, 2)
         return RDD(self._jsc.textFile(name, minPartitions), self,
                    UTF8Deserializer(use_unicode))
+    ###################
+    # HVCL Sumin 
+    # Modified wholeTextFiles to support Vispark Tag
 
     @ignore_unicode_prefix
-    def wholeTextFiles(self, path, minPartitions=None, use_unicode=True):
+    def wholeTextFiles(self, path, minPartitions=None, use_unicode=True, tag=None):
         """
         Read a directory of text files from HDFS, a local file system
         (available on all nodes), or any  Hadoop-supported file system
@@ -546,9 +558,17 @@ class SparkContext(object):
         >>> sorted(textFiles.collect())
         [(u'.../1.txt', u'1'), (u'.../2.txt', u'2')]
         """
-        minPartitions = minPartitions or self.defaultMinPartitions
-        return RDD(self._jsc.wholeTextFiles(path, minPartitions), self,
+        if tag==None :
+    
+            minPartitions = minPartitions or self.defaultMinPartitions
+            return RDD(self._jsc.wholeTextFiles(path, minPartitions), self,
                    PairDeserializer(UTF8Deserializer(use_unicode), UTF8Deserializer(use_unicode)))
+        elif tag=='VISPARK':
+            minPartitions = minPartitions or self.defaultParallelism
+            tmp_RDD = RDD(self._jsc.wholeTextFiles(path, minPartitions), self,
+                      PairDeserializer(UTF8Deserializer(use_unicode), UTF8Deserializer(use_unicode)))
+
+            return self.vispark(target_rdd=tmp_RDD,path=path)
 
     def binaryFiles(self, path, minPartitions=None):
         """
@@ -978,6 +998,15 @@ class SparkContext(object):
         conf = SparkConf()
         conf.setAll(self._conf.getAll())
         return conf
+
+    ########################
+    # HVCL Sumin
+    # Vispark constructor
+
+
+    def vispark(self, numSlices = None, target_rdd =None, path=None, name=None, halo=0, raw_to_array = False):
+        return VisparkRDD(target_rdd=target_rdd, path=path, name=name, halo=halo, raw_to_array=raw_to_array)
+
 
 
 def _test():

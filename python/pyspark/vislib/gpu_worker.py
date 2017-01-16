@@ -9,7 +9,6 @@ import traceback
 import cProfile
 import pstats
 from pyspark.vislib.package import VisparkMeta
-#import itertools
 
 # vispark socket
 from socket import *
@@ -38,9 +37,7 @@ class bcolors:
 
 host_name = gethostname()
 
-logging = False
-profiling = False
-
+logging = True
 
 def print_green(source):
     if logging:
@@ -91,20 +88,11 @@ def send_signal(signal,data_id,address='127.0.0.1',port=int(3939)):
     sending_str += '0'*msg_size
 
 
-    if profiling :
-        with open("/home/whchoi/profile/%s.txt"%(data_id), "a") as myfile:    
-            myfile.write("HALO %0.3f "%(time.time()))
-
-
     clisock.send(sending_str[:msg_size])
  
     msg = clisock.recv(msg_size)
     reply = msg[:msg.find('**')]
  
-    if profiling :
-        with open("/home/whchoi/profile/%s.txt"%(data_id), "a") as myfile:    
-            myfile.write("%0.3f\n"%(time.time()))
-
           
     return reply
  
@@ -238,68 +226,6 @@ def send_halo(data_id,data_str,indata_meta,address='127.0.0.1',port=int(3939)):
             #return data_id,''
 
             #print "Recv ACK" , data_id, reply
-            """   
-            msg = clisock.recv(msg_size)
-            reply = msg[:msg.find('**')]
-            msg = msg[msg.find('**')+2:]
-            
-            #print reply
-            if reply == 'absent':
-                retry_flag = False
-                #print "Data Absent" 
-                #return reply, None
-                return None
-            elif reply == 'exist':
-                #print "Data Exist" 
-
-                args_len = int(msg[:msg.find('**')])
-                msg = msg[msg.find('**')+2:]
-                lenn1 = int(msg[:msg.find('**')])
-                msg = msg[msg.find('**')+2:]
-
-                data_len = int(msg[:msg.find('**')])
-                msg = msg[msg.find('**')+2:]
-                lenn2 = int(msg[:msg.find('**')])
-                #msg = msg[msg.find('**')+2:]
-            
-                #print "Recv num %d"%(lenn)
-                #print "Recv size %d"%(data_len)
-                args_str = ''
- 
-                recv_num = 0
-                while recv_num < lenn1:
-                    args_str += clisock.recv(msg_size)
-                    #recv_flag = data_str += clisock.recv(msg_size)
-                    #if recv_flag == 0:
-                    #    raise RuntimeError("Recv connection broken")
-                    recv_num += 1
-              
-                data_str = ''
-                #for elem in range(lenn):
-                recv_num = 0
-                while recv_num < lenn2:
-                    data_str += clisock.recv(msg_size)
-                    #recv_flag = data_str += clisock.recv(msg_size)
-                    #if recv_flag == 0:
-                    #    raise RuntimeError("Recv connection broken")
-                    recv_num += 1
- 
-                #clisock.close()
-                data_str = data_str[:data_len]
-                import cPickle as pickle
-                shape_dict= pickle.loads(args_str)
-                data_shape = shape_dict['outdata_shape']
-                data_type  = shape_dict['outdata_type']
- 
-                import numpy
-                data_array = numpy.fromstring(data_str,dtype=data_type).reshape(data_shape)
-
-                print data_array.shape , data_shape, data_type
-
-                retry_flag = False
-                #return 'success', data_str 
-                return (data_id, data_array)
-            """
         else :
         #except:
             print "Error in halo data"
@@ -412,9 +338,6 @@ def gpu_persist(data_id,data_str,address='127.0.0.1',port=int(3939)):
 
             #print data_id, data_str[:30]
 
-            if profiling :
-                with open("/home/whchoi/profile/%s.txt"%(data_id), "a") as myfile:    
-                    myfile.write("EXEC %0.3f "%(time.time()))
 
             sent_num = 0
             while sent_num < lenn:
@@ -425,11 +348,6 @@ def gpu_persist(data_id,data_str,address='127.0.0.1',port=int(3939)):
 
             msg = clisock.recv(msg_size)
  
-            if profiling :
-                with open("/home/whchoi/profile/%s.txt"%(data_id), "a") as myfile:    
-                    myfile.write("%0.3f\n"%(time.time()))
-
-
  
             return (data_id,'')
            
@@ -440,9 +358,6 @@ def recv_data(data_id,data_str,address='127.0.0.1',port=int(3939)):
     if retry_flag:
         #try:
         if True:
-            if profiling :
-                with open("/home/whchoi/profile/%s.txt"%(data_id), "a") as myfile:    
-                    myfile.write("%0.3f\n"%(time.time()))
 
             #clisock = socket(AF_INET, SOCK_STREAM)
             #clisock.connect((address, int(port)))
@@ -482,9 +397,6 @@ def recv_data(data_id,data_str,address='127.0.0.1',port=int(3939)):
             bandwidth = (sent_num)*msg_size / (time.time() - temp_time) / (1048576.0)
             print_bold( "Worker bandwidth for (%s,%s) : %f"%("send",data_id,bandwidth))
 
-            #if profiling :
-            #    with open("/home/whchoi/profile/%s.txt"%(data_id), "a") as myfile:    
-            #        myfile.write("%0.3f\n"%(time.time()))
  
             #print "Recv Meta" , sending_str[:100]
                     
@@ -513,9 +425,6 @@ def recv_data(data_id,data_str,address='127.0.0.1',port=int(3939)):
             
                 #print "Recv num %d"%(lenn)
                 #print "Recv size %d"%(data_len)
-                #if profiling :
-                #    with open("/home/whchoi/profile/%s.txt"%(data_id), "a") as myfile:    
-                #        myfile.write("%0.3f\n"%(time.time()))
  
 
                 args_str = ''
@@ -559,9 +468,6 @@ def recv_data(data_id,data_str,address='127.0.0.1',port=int(3939)):
                 retry_flag = False
                 #return 'success', data_str 
 
-                if profiling :
-                    with open("/home/whchoi/profile/%s.txt"%(data_id), "a") as myfile:    
-                        myfile.write("%0.3f\n"%(time.time()))
  
 
                 return (data_id, data_array)
@@ -656,30 +562,9 @@ def extract_halo_cpu(array_data, target_id, args_dict, halo_dict, halo_dirt_dict
     full_data_shape = ImgDim
   
 
-
-    #full_data_range = args_list['func_args']['meta']['full_data_shape']
-    #split           = args_list['func_args']['meta']['split']
-
-    #ds, ss = generate_data_shape(self._data_shape, self._input_split, _x, _y, -1, self._halo)
-    #self._input_data_shape_list.append(ds)
-    #self._input_split_shape.append(ss)
- 
-    #print data_shape, input_split
-
-    #input_data_shape, input_split_shape = generate_data_shape(data_shape, input_split, _x, _y, -1, self._halo)
-    #input_data_shape, input_data_split = generate_data_shape(data_shape, input_split, _x, _y, _z, data_halo)
     input_data_shape, input_data_split = generate_data_shape(target_id, ImgDim, ImgSplit, data_halo)
 
-    #data_shape      = vm_in.data_shape
-    #data_split
-   
-    #data_shape      = vm_in.data_shape
-    #full_data_shape = vm_in.full_data_shape
-    #data_halo       = vm_in.data_halo
-    #data_type       = vm_in.data_type
 
-   # print input_data_shape, input_data_split
- 
 
     comm_type='full'
 
@@ -807,8 +692,6 @@ def append_halo_gpu(vm_indata, target_id, args_dict, halo_dict, ctx, stream):
                     print_str +=  'y'+ str(dim_dr_to_range(work_range, 'y'))
                     print_str +=  'z'+ str(dim_dr_to_range(work_range, 'z'))
 
-                    #if host_name == 'emerald1':
-                        #print print_str
                     block, grid = get_block_grid(work_range)
                     #print time.sleep(3)
 
@@ -817,7 +700,8 @@ def append_halo_gpu(vm_indata, target_id, args_dict, halo_dict, ctx, stream):
                     #from pycuda.compiler import SourceModule
                     #mod =  SourceModule(open('halo.cu').read(), no_extern_c = True, arch='sm_37',options = ["-use_fast_math", "-O3", "-w"])
                     #from pyspark.vislib.package import VisparkMeta
-                    mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_52',options = ["-use_fast_math", "-O3", "-w"])
+                    #mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_52',options = ["-use_fast_math", "-O3", "-w"])
+                    mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_37',options = ["-use_fast_math", "-O3", "-w"])
                     func = mod.get_function(func_name)
                     #dim = ret.count(':')
 
@@ -924,7 +808,8 @@ def extract_halo_gpu(vm_indata, target_id, args_dict, halo_dict, halo_dirt_dict,
                     func_name = 'extract_halo'
                     #from pycuda.compiler import SourceModule
                     #mod =  SourceModule(open('halo.cu').read(), no_extern_c = True, arch="sm_37", options = ["-use_fast_math", "-O3", "-w"])
-                    mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_52',options = ["-use_fast_math", "-O3", "-w"])
+                    #mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_52',options = ["-use_fast_math", "-O3", "-w"])
+                    mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_37',options = ["-use_fast_math", "-O3", "-w"])
                     #mod =  SourceModule(open('pyspark/vislib/halo.cu').read(), no_extern_c = True, arch="sm_52", options = ["-use_fast_math", "-O3", "-w"])
                     func = mod.get_function(func_name)
 
@@ -959,134 +844,6 @@ def extract_halo_gpu(vm_indata, target_id, args_dict, halo_dict, halo_dirt_dict,
                     save_halo(target_data, target_split, target_key, target_loc, halo_dict, flag=True)
  
 
-
-#def extract_halo_gpu(devptr_dict, halo_dict,ctx,stream):
-#def extract_halo_gpu(vm_indata, target_id, halo_info, halo_dict, ctx, stream):
-def extract_halo_gpu_old(vm_indata, target_id, halo_info, halo_dict, halo_dirt_dict, ctx, stream):
-
-    ######################################################
-    #Prepare (CUDA function)
-    
-    ImgDim      = halo_info['full_data_shape']
-    ImgSplit    = halo_info['split']
-    data_halo   = halo_info['halo']
-    #vm_indata   = args_dict['vm_indata']
-    try:
-        target_id = int(target_id)
-    except:
-        target_id = target_id[target_id.rfind('_')+1:]
-        target_id = int(target_id)
-
-
-    #return 
-
-    input_data_shape, input_data_split = generate_data_shape(target_id, ImgDim, ImgSplit, data_halo)
-
-    if 'origin' not in halo_dirt_dict: halo_dirt_dict['origin'] = {}
-    halo_dirt_dict['origin'][str(input_data_split)] = True
-
-
-    comm_type='full'
-
-    neighbor_indi_z = ['u','c','d'] if 'z' in ImgDim else ['-']
-    neighbor_indi_y = ['u','c','d'] if 'y' in ImgDim else ['-']
-    neighbor_indi_x = ['u','c','d'] if 'x' in ImgDim else ['-']
-  
-    for _z in neighbor_indi_z:
-        for _y in neighbor_indi_y:
-            for _x in neighbor_indi_x:
-    
-                ret = check_in_area(ImgDim, input_data_shape, _x, _y, _z, data_halo, 'advanced_write',comm_type)
-
-                if ret != None:
-
-                    exec "work_range = {" + ret + "}"
-                
-
-                    def create_result_buffer(ds):
-                        ret_size = 1
-                        for elem in ds:
-                            ret_size = ret_size * (ds[elem][1] - ds[elem][0])
-                        return ret_size
- 
-                    #import pycuda.driver as cuda
-
-                    # 4 : float
-                    dt = vm_indata.cu_dtype
-                    
-                    buffer_size  = create_result_buffer(work_range)
-
-                    if dt == 'float2':
-                        buffer_size *= 2
-
-                    target_devptr = cuda.mem_alloc(buffer_size * 4)
-                    target_sh     = data_range_to_cuda_in(work_range, work_range, work_range, cuda=cuda)
-
-
-                    cuda_args =  [target_devptr]
-                    cuda_args += [target_sh]
-
-
-                    cuda_args += [vm_indata.data]
-                    cuda_args += [vm_indata.data_sh]
-
-                    cuda_args += make_cuda_list(work_range)
-
-
-                    block, grid = get_block_grid(work_range)
-
-                    # 
-                    func_name = 'writing'
-                    #dt = vm_indata.cu_dtype
-                    #print dt
-    	            di = len(vm_indata.data_shape)
-    	            func_name += '_%dd_%s'%(di, dt)
-
-                    func = vm_indata.mod.get_function(func_name)
-                    #dim = ret.count(':')
-
-                    func(*cuda_args, block=block, grid=grid, stream=stream)
-                    #ctx.synchronize()
-
-
-    
-                    # synchronous
-                    #result_buffer = numpy.ndarray(buffer_size, dtype=numpy.float32)
-                    result_buffer = cuda.pagelocked_empty(shape=(buffer_size), dtype=numpy.float32)
-
-
-                    cuda.memcpy_dtoh_async(result_buffer, target_devptr,stream)
-                    #cuda.memcpy_dtoh(result_buffer, target_devptr)
-                    #ctx.synchronize()
-                    stream.synchronize()
-
-                    #print result_buffer.shape, result_buffer[:2]
-
-                    target_devptr.free()
-
-                    local_data_shape = []
-                    for axis in ['z', 'y', 'x']:
-                        if axis in work_range:
-                            start, end =  work_range[axis]
-                            local_data_shape.append(end-start)
-
-                    if dt == 'float2':
-                        local_data_shape.append(2)
-
-                    target_data = result_buffer.reshape(local_data_shape)
-
-                    target_split = input_data_split
-                    target_key = 'origin'
-                    target_loc = 'z%sy%sx%s'%(_z,_y,_x)
-                    #print target_split, target_loc, target_key
-                    #print "Extract halo for %s %s"%(target_split,target_loc)
-                    save_halo(target_data, target_split, target_key, target_loc, halo_dict, flag=True)
- 
-
-
-
-
-    
 
 
 
@@ -1403,15 +1160,13 @@ def gpu_run(args_dict, in_process, ctx,stream, key=-1):
         kernel_code += cuda_function_code
         kernel_code += '\n}'
 
-        if True:
-            open("/home/whchoi/tmp/asdf.cu", 'w').write(kernel_code)
         function_name = str(function_name+function_dtype)
 
     ######################################################
     #Source to Object  compile
 
-    #mod = SourceModule(kernel_code, no_extern_c = True, arch="sm_37" ,options = ["-use_fast_math", "-O3", "-w"])
-    mod = SourceModule(kernel_code, no_extern_c = True, arch="sm_52" ,options = ["-use_fast_math", "-O3", "-w"])
+    mod = SourceModule(kernel_code, no_extern_c = True, arch="sm_37" ,options = ["-use_fast_math", "-O3", "-w"])
+    #mod = SourceModule(kernel_code, no_extern_c = True, arch="sm_52" ,options = ["-use_fast_math", "-O3", "-w"])
     
     #while True:
     #    try :
@@ -1584,20 +1339,6 @@ def gpu_run(args_dict, in_process, ctx,stream, key=-1):
     cuda_func(*cuda_args, block=block, grid=grid, stream=stream)
     #stream.synchronize()
     
-    try: 
-        if int(key) == 0:
-            global default_cnt 
-            if default_cnt%30 == 0:
-                result_buffer = cuda.pagelocked_empty(shape=(66, 258, 258), dtype=numpy.float32)
-                cuda.memcpy_dtoh_async(result_buffer, cuda_args[0], stream=stream)
-
-                stream.synchronize()
-                import Image
-                Image.fromarray(result_buffer[33, :, :]).save('/home/whchoi/heatflow/vispark_%d.tif'%default_cnt)
-            default_cnt += 1
-    except:
-        pass
-    #try:
     #    stream.synchronize()
     #except:
     #    print function_name

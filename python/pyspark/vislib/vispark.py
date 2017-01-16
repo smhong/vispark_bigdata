@@ -28,7 +28,7 @@ from pyspark.traceback_utils import CallSite, first_spark_call
 
 from py4j.java_collections import ListConverter
 
-from vislib.package import VisparkMeta
+from pyspark.vislib.package import VisparkMeta
 
 from hdfs import InsecureClient
 import getpass
@@ -481,8 +481,6 @@ class VisparkRDD(object):
                 #t_data_V = numpy.fromstring(data, dtype=numpy.float32).reshape(2050, 8194, 6)[1:-1,1:-1,1].astype(numpy.uint8)*180
                 #t_data = numpy.fromstring(data, dtype=numpy.float32).reshape(2050, 8194, 6)[1:-1,1:-1,5].astype(numpy.uint8)*30
                 #import Image
-                #Image.fromarray(t_data_U).save('/home/whchoi/Project/vispark/CCGRID/05_navier-stokes/2D/temporal/%s_%05d_U.tif'%(name, FileIdx))
-                #Image.fromarray(t_data_V).save('/home/whchoi/Project/vispark/CCGRID/05_navier-stokes/2D/temporal/%s_%05d_V.tif'%(name, FileIdx))
 
                 #except:
                 #print "data saved"
