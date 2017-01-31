@@ -493,9 +493,9 @@ class VisparkRDD(object):
         def saveInHDFS(key, data, name, flag):
 
             #FileName = key[key.rfind('/')+1:]
-            FileIdx  = int(key)
 
             if flag == True :
+                FileIdx  = int(key)
                 #pass
                 BaseName = name
                 name='nast'

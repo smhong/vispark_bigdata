@@ -26,15 +26,19 @@ PYSPARK_PATH = "%s/python/"%SPARK_HOME
 
 def read_conf():
     CUDA_ARCH=''
+    logging=False
 
     with open("%s/conf/gpu_conf"%SPARK_HOME,'r') as fp:
         for line in fp:
             if line.find("CUDA_ARCH") is not -1:
                 CUDA_ARCH=line[10:-1]
+            if line.find("LOG") is not -1:
+                if line[4:-1] == "console":
+                    logging=True 
 
-    return CUDA_ARCH
+    return CUDA_ARCH, logging
 
-CUDA_ARCH=read_conf()
+CUDA_ARCH, logging=read_conf()
 
 class bcolors:
     HEADER = '\033[95m'
@@ -48,7 +52,6 @@ class bcolors:
 
 host_name = gethostname()
 
-logging = True
 
 def print_green(source):
     if logging:
