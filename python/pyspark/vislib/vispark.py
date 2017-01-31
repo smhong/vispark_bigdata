@@ -388,7 +388,7 @@ class VisparkRDD(object):
             return new_output
 
         output = evaluate_output(output)
-        print work_range, output 
+        #print work_range, output 
 
 
         total_args, indata_meta = self.vispark_workrange(function_name, func_args, etc_args, work_range, halo, comm_type, code, main_data, num_iter = numiter, extern_code=extern_code, output=output)

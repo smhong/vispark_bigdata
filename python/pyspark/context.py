@@ -118,7 +118,6 @@ class SparkContext(object):
             ...
         ValueError:...
         """
-        print ("Hello Spark")       
  
         self._callsite = first_spark_call() or CallSite(None, None, None)
         SparkContext._ensure_initialized(self, gateway=gateway, conf=conf)
@@ -570,7 +569,12 @@ class SparkContext(object):
 
             return self.vispark(target_rdd=tmp_RDD,path=path)
 
-    def binaryFiles(self, path, minPartitions=None):
+    ###################
+    # HVCL Sumin 
+    # Modified binaryFiles to support Vispark Tag
+
+
+    def binaryFiles(self, path, minPartitions=None, tag=None, halo=0):
         """
         .. note:: Experimental
 
@@ -583,9 +587,16 @@ class SparkContext(object):
         .. note:: Small files are preferred, large file is also allowable, but
             may cause bad performance.
         """
-        minPartitions = minPartitions or self.defaultMinPartitions
-        return RDD(self._jsc.binaryFiles(path, minPartitions), self,
-                   PairDeserializer(UTF8Deserializer(), NoOpSerializer()))
+        if tag==None:
+            minPartitions = minPartitions or self.defaultMinPartitions
+            return RDD(self._jsc.binaryFiles(path, minPartitions), self,
+                    PairDeserializer(UTF8Deserializer(), NoOpSerializer()))
+        elif tag=='VISPARK':
+            minPartitions = minPartitions or self.defaultMinPartitions
+            tmp_RDD = RDD(self._jsc.binaryFiles(path, minPartitions), self,
+                    PairDeserializer(UTF8Deserializer(), NoOpSerializer()))
+                    #PairDeserializer(UTF8Deserializer(), NoOpSerializer),tag='GPU')
+            return self.vispark(target_rdd=tmp_RDD,path=path, halo=halo)
 
     def binaryRecords(self, path, recordLength):
         """
