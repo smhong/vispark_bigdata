@@ -24,6 +24,17 @@ msg_size = 4*1024
 SPARK_HOME=os.environ["SPARK_HOME"]
 PYSPARK_PATH = "%s/python/"%SPARK_HOME
 
+def read_conf():
+    CUDA_ARCH=''
+
+    with open("%s/conf/gpu_conf"%SPARK_HOME,'r') as fp:
+        for line in fp:
+            if line.find("CUDA_ARCH") is not -1:
+                CUDA_ARCH=line[10:-1]
+
+    return CUDA_ARCH
+
+CUDA_ARCH=read_conf()
 
 class bcolors:
     HEADER = '\033[95m'
@@ -698,10 +709,10 @@ def append_halo_gpu(vm_indata, target_id, args_dict, halo_dict, ctx, stream):
 
                     func_name = 'append_halo'
                     #from pycuda.compiler import SourceModule
-                    #mod =  SourceModule(open('halo.cu').read(), no_extern_c = True, arch='sm_37',options = ["-use_fast_math", "-O3", "-w"])
+                    #mod =  SourceModule(open('halo.cu').read(), no_extern_c = True, arch=CUDA_ARCH,options = ["-use_fast_math", "-O3", "-w"])
                     #from pyspark.vislib.package import VisparkMeta
                     #mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_52',options = ["-use_fast_math", "-O3", "-w"])
-                    mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_37',options = ["-use_fast_math", "-O3", "-w"])
+                    mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch=CUDA_ARCH,options = ["-use_fast_math", "-O3", "-w"])
                     func = mod.get_function(func_name)
                     #dim = ret.count(':')
 
@@ -809,7 +820,7 @@ def extract_halo_gpu(vm_indata, target_id, args_dict, halo_dict, halo_dirt_dict,
                     #from pycuda.compiler import SourceModule
                     #mod =  SourceModule(open('halo.cu').read(), no_extern_c = True, arch="sm_37", options = ["-use_fast_math", "-O3", "-w"])
                     #mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_52',options = ["-use_fast_math", "-O3", "-w"])
-                    mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch='sm_37',options = ["-use_fast_math", "-O3", "-w"])
+                    mod =  SourceModule(open('%s/pyspark/vislib/halo.cu'%PYSPARK_PATH).read(), no_extern_c = True, arch=CUDA_ARCH,options = ["-use_fast_math", "-O3", "-w"])
                     #mod =  SourceModule(open('pyspark/vislib/halo.cu').read(), no_extern_c = True, arch="sm_52", options = ["-use_fast_math", "-O3", "-w"])
                     func = mod.get_function(func_name)
 
@@ -1165,7 +1176,7 @@ def gpu_run(args_dict, in_process, ctx,stream, key=-1):
     ######################################################
     #Source to Object  compile
 
-    mod = SourceModule(kernel_code, no_extern_c = True, arch="sm_37" ,options = ["-use_fast_math", "-O3", "-w"])
+    mod = SourceModule(kernel_code, no_extern_c = True, arch=CUDA_ARCH ,options = ["-use_fast_math", "-O3", "-w"])
     #mod = SourceModule(kernel_code, no_extern_c = True, arch="sm_52" ,options = ["-use_fast_math", "-O3", "-w"])
     
     #while True:

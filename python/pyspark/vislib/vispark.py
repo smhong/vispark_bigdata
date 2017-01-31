@@ -346,8 +346,50 @@ class VisparkRDD(object):
     ########################################            
     # Vispark transformation 
 
-    def vmap(self, function_name, func_args= [], etc_args={}, work_range=[], halo=0, comm_type='full', code=None, main_data={}, numiter = 1, extern_code=None, output=[]):
-        
+    def vmap(self, function_name, func_args= [], etc_args={}, work_range={}, halo=0, comm_type='full', code=None, main_data={}, numiter = 1, extern_code=None, output=[]):
+        #print "Hello Vmap"
+        def evaluate_work_range(wr):
+            new_work_range = {}
+            for elem in main_data:
+                if elem not in locals():
+                    locals()[elem] = main_data[elem]
+
+            for axis in work_range:
+                vals = work_range[axis]
+
+                #try:
+                    #start = eval(vals[0])
+                #except:
+                    #start = eval(str(main_data[vals[0]]))
+                start = eval(str(vals[0]))
+                
+                #try:
+                    #end = eval(vals[1])
+                #except:
+                    #locals()[vals[1]] = main_data[vals[1]]
+                end = eval(str(vals[1]))
+                
+
+                new_work_range[axis] = [start, end]
+
+            return new_work_range
+
+        work_range = evaluate_work_range(work_range)
+
+        def evaluate_output(output):
+            for elem in main_data:
+                if elem not in locals():
+                    locals()[elem] = main_data[elem]
+
+            new_output = []
+            new_output.append(output[0])
+            new_output.append(eval(str(output[1])))
+       
+            return new_output
+
+        output = evaluate_output(output)
+        print work_range, output 
+
 
         total_args, indata_meta = self.vispark_workrange(function_name, func_args, etc_args, work_range, halo, comm_type, code, main_data, num_iter = numiter, extern_code=extern_code, output=output)
  

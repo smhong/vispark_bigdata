@@ -79,8 +79,8 @@ if __name__ == "__main__":
             else:
                 end   = mid + argv[mid:].find(')')
         
-            x_start = int(argv[start:mid])
-            x_end   = int(argv[mid+1:end])
+            x_start = argv[start:mid]
+            x_end   = argv[mid+1:end]
     
             if argv[end:].find('y=') != -1:
         
@@ -92,23 +92,24 @@ if __name__ == "__main__":
                 else:
                     end   = mid + argv[mid:].find(')')
         
-                y_start = int(argv[start:mid])
-                y_end   = int(argv[mid+1:end])
+                y_start = (argv[start:mid])
+                y_end   = (argv[mid+1:end])
+
                 if argv[end:].find('z=') != -1:
         
                     start = end + argv[end:].find('z=')+2
                     mid   = start + argv[start:].find(':')
                     end   = mid + argv[mid:].find(')')
         
-                    z_start = int(argv[start:mid])
-                    z_end   = int(argv[mid+1:end])
+                    z_start = (argv[start:mid])
+                    z_end   = (argv[mid+1:end])
         
         
-                    result = result + "work_range={'%s':[%d, %d],'%s':[%d,%d],'%s':[%d,%d]},"%('x',x_start,x_end,'y',y_start,y_end,'z',z_start,z_end)
+                    result = result + "work_range={'%s':['%s', '%s'],'%s':['%s','%s'],'%s':['%s','%s']},"%('x',x_start,x_end,'y',y_start,y_end,'z',z_start,z_end)
                 else:
-                    result = result + "work_range={'%s':[%d, %d],'%s':[%d,%d]},"%('x',x_start,x_end,'y',y_start,y_end)
+                    result = result + "work_range={'%s':['%s', '%s'],'%s':['%s','%s']},"%('x',x_start,x_end,'y',y_start,y_end)
             else:
-                result = result + "work_range={'%s':[%d, %d]},"%('x',x_start,x_end)
+                result = result + "work_range={'%s':['%s', '%s']},"%('x',x_start,x_end)
         else:
             result = result + "work_range=None,"
 
@@ -144,14 +145,14 @@ if __name__ == "__main__":
         if argv.find(target) != -1:
             r_idx = argv.find(target) + len(target)
             start = r_idx 
-            end   = start + argv[start:].find(')')
+            end   = start + argv[start:start+argv[start:].find('.')].rfind(')')
             code  = argv[start:end]
 
             dtype = code[:code.find(',')]
             cnt   = code[code.find(',')+1:]
 
 
-            result = result + "output=[%s,%d],"%(dtype, int(cnt))
+            result = result + "output=[%s,%s],"%(dtype, cnt)
 
         else:
             result = result + "output=[],"
