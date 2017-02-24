@@ -257,6 +257,8 @@ def shape_tuple_or_list_to_dict(shape):
     ret_dict = {}
 
     tmp_shape = shape if shape[-1] > 4 else shape[:-1]
+    
+    print tmp_shape
 
     for elem in AXIS:
         if elem == 'x':
@@ -730,17 +732,26 @@ def get_block_grid(wr):
 
     block_unit = 8
     if 'z' in wr:
-        block[2] = block_unit
-        grid[2] = ((wr['z'][1] - wr['z'][0])/block_unit+1)
-    else:
         block_unit = block_unit * 2
+ 
     if 'x' in wr:
-        block[0] = block_unit
-        grid[0] = ((wr['x'][1] - wr['x'][0])/block_unit+1)
+        if (wr['x'][1] - wr['x'][0]) > block_unit:
+            block[0] = block_unit
+            grid[0] = ((wr['x'][1] - wr['x'][0])/block_unit+1)
+        else :
+            block[0] = (wr['x'][1] - wr['x'][0])
     if 'y' in wr:
-        block[1] = block_unit
-        grid[1] = ((wr['y'][1] - wr['y'][0])/block_unit+1)
-        
+        if (wr['y'][1] - wr['y'][0]) > block_unit:
+            block[1] = block_unit
+            grid[1] = ((wr['y'][1] - wr['y'][0])/block_unit+1)
+        else :
+            block[1] = (wr['y'][1] - wr['y'][0])
+    if 'z' in wr:
+        if (wr['z'][1] - wr['z'][0]) > block_unit:
+            block[2] = block_unit
+            grid[2] = ((wr['z'][1] - wr['z'][0])/block_unit+1)
+        else :
+            block[2] = (wr['z'][1] - wr['z'][0])
                 
         #print block, grid
     return tuple(block), tuple(grid)

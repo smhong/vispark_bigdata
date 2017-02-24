@@ -20,7 +20,7 @@ if __name__ == "__main__":
         if elem.replace(' ','').find('#') == 0:
             #out_lines = out_lines + elem 
             continue
-        elif elem.find('.vmap(') == -1:
+        elif elem.find('.vmap(') == -1 and elem.find('.vmapSeq(') == -1 :
             out_lines = out_lines + elem 
             continue
         elif elem == '':
@@ -32,7 +32,13 @@ if __name__ == "__main__":
         result  = ""
         for elem in range(elem.find(argv[0])):
             result = result + ' '
-        r_idx = argv.find('.vmap(') + 6
+        
+        #r_idx = argv.find('.vmap(') + 6
+        if argv.find('.vmap(') > -1:
+            r_idx = argv.find('.vmap(') + 6
+        elif argv.find('.vmapSeq(') > -1:
+            r_idx = argv.find('.vmapSeq(') + 9
+   
         result = result + argv[:r_idx]
         #result = result.replace('vmap', 'map')
     

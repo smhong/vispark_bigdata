@@ -56,12 +56,16 @@ if PY4J_PATH not in sys.path:
 
 
 #from gpu_worker import gpu_run, gpu_htod, gpu_dtoh, \
+"""
 from pyspark.vislib.gpu_worker import gpu_run, gpu_htod, gpu_dtoh, \
                        extract_halo_gpu, append_halo_gpu ,extract_halo_cpu, append_halo_cpu, \
                        reading_args, reshape_data, \
                        check_device_mem, \
                        save_halo, read_halo, \
-                       clear_mem
+                       clear_mem, 
+"""
+
+from pyspark.vislib.gpu_worker import *
 
 def read_conf():
     CUDA_ARCH=''
@@ -267,16 +271,14 @@ while loop:
             #if command == "GPUS":
             #elif command == "TRAIN":
             #print msg[:msg.rfind('**')]
+            key = msg[:msg.find('**')]
+            msg = msg[msg.find('**')+2:]
             command = msg[:msg.find('**')]
+            msg = msg[msg.find('**')+2:]
 
             if command =='':
-                #print_red(msg)
                 break
 
-                            #exit()
-            #svrsock.close()
-
-            msg = msg[msg.find('**')+2:]
             if command == 'clear':
                 data_dict = {}
                 args_dict = {}
@@ -307,7 +309,6 @@ while loop:
                 exit()     
 
 
-            key = msg[:msg.find('**')]
             dev_id = hash(key)%maxDevice
             dev = cuda.Device(dev_id)
             print_green("Manager receive %s for %s [%d] "%(str(command),key,dev_id))
@@ -357,7 +358,7 @@ while loop:
                     print_bold( "Hit %s"%args_dict[key]['vm_out'].data)
                 
             if command == 'halo_add':
-                msg = msg[msg.find('**')+2:]
+                #msg = msg[msg.find('**')+2:]
     
                 target_split = msg[:msg.find('**')]
                 msg = msg[msg.find('**')+2:]
@@ -383,7 +384,7 @@ while loop:
 
 
             if command == 'halo_recv':
-                msg = msg[msg.find('**')+2:]
+                #msg = msg[msg.find('**')+2:]
     
                 target_split = msg[:msg.find('**')]
                 msg = msg[msg.find('**')+2:]
@@ -423,7 +424,87 @@ while loop:
             if command == 'send':
 
                 #key = msg[:msg.find('**')]
+                #msg = msg[msg.find('**')+2:]
+        
+                                    
+                args_len = int(msg[:msg.find('**')])
                 msg = msg[msg.find('**')+2:]
+                lenn1 = int(msg[:msg.find('**')])
+                msg = msg[msg.find('**')+2:]
+
+                data_len = int(msg[:msg.find('**')])
+                msg = msg[msg.find('**')+2:]
+                lenn2 = int(msg[:msg.find('**')])
+               
+                print args_len,lenn1,data_len,lenn2
+ 
+                temp_time = time.time()
+                args_str =''
+                for elem in range(lenn1):
+                    args_str += clisock.recv(msg_size)
+                    num_recv += 1       
+ 
+
+                data_str =''
+                for elem in range(lenn2):
+                    data_str += clisock.recv(msg_size)
+                    num_recv += 1       
+                bandwidth = (lenn1 + lenn2)*msg_size / (time.time() - temp_time) / (1048576.0)
+                
+                args_str = args_str[:args_len]
+                data_str = data_str[:data_len]
+          
+                print_blue("Manager bandwidth for (%s,%s) [%d] : %f"%(str(command),key,dev_id,bandwidth))
+
+ 
+                if key in args_dict : pass
+                else : args_dict[key] = {}
+
+                import cPickle as pickle
+                target_id, shape_dict= pickle.loads(args_str)
+               
+                """ 
+                #target_id = int('%04d'%(int(target_id[target_id.rfind('_')+1:])))
+                _target_id = target_id
+
+                if type (target_id) == int:
+                    pass
+                else :
+                    try:
+                        target_id = target_id[target_id.rfind('_')+1:]
+
+                        #print target_id
+                        # kmeans
+                        if target_id.find('.') > 0 :
+                            target_id = target_id[:target_id.find('.')]
+                        target_id = int(target_id)
+                    except:
+                        target_id = _target_id[_target_id.rfind('/')+1:_target_id.rfind('.')]
+                        target_id = int(target_id)
+                #args_dict[key]['vm_in'] = args_list[target_id]
+                """
+
+                args_dict[key]['indata_shape'] = shape_dict['indata_shape']
+                args_dict[key]['indata_type']  = shape_dict['indata_type']
+                args_dict[key]['data_halo']    = shape_dict['data_halo']
+                args_dict[key]['target_id']    = target_id
+                
+                stream[key] = cuda.Stream()
+
+                data_dict[key] = reshape_data(data_str,args_dict[key])
+
+                #if in_process == True :
+                if False:
+                    gpu_htod(data_dict[key],args_dict[key],ctx,stream[key])
+
+                    data_dict[key] = None
+                    
+                #print "Send    : %s"%key
+            
+            if command == 'send_seq':
+
+                #key = msg[:msg.find('**')]
+                #msg = msg[msg.find('**')+2:]
         
                                     
                 args_len = int(msg[:msg.find('**')])
@@ -459,6 +540,7 @@ while loop:
 
                 import cPickle as pickle
                 target_id, shape_dict= pickle.loads(args_str)
+                """
                 #target_id = int('%04d'%(int(target_id[target_id.rfind('_')+1:])))
                 _target_id = target_id
 
@@ -476,10 +558,13 @@ while loop:
                     except:
                         target_id = _target_id[_target_id.rfind('/')+1:_target_id.rfind('.')]
                         target_id = int(target_id)
+                """
                 #args_dict[key]['vm_in'] = args_list[target_id]
+                
                 args_dict[key]['indata_shape'] = shape_dict['indata_shape']
                 args_dict[key]['indata_type']  = shape_dict['indata_type']
                 args_dict[key]['data_halo']    = shape_dict['data_halo']
+                args_dict[key]['indata_num']   = shape_dict['indata_num']
                 args_dict[key]['target_id']    = target_id
                 
                 stream[key] = cuda.Stream()
@@ -493,7 +578,7 @@ while loop:
                     data_dict[key] = None
                     
                 #print "Send    : %s"%key
-                
+              
             elif command == 'recv':
                         
                 # send split_position location send_cnt data
@@ -529,6 +614,8 @@ while loop:
                     data_len = len(data_str)
                     data_str += '0'*msg_size
                     lenn2 = len(data_str)/msg_size
+
+                    #print args_str,args_len,data_len,lenn1,lenn2
 
                     sending_str = "exist**"
                     sending_str += "%s**%s**%s**%s**"%(str(args_len), str(lenn1), str(data_len),str(lenn2))
@@ -628,7 +715,7 @@ while loop:
             elif command == 'run':
 
                 #key = msg[:msg.find('**')]
-                msg = msg[msg.find('**')+2:]
+                #msg = msg[msg.find('**')+2:]
         
                 args_len = int(msg[:msg.find('**')])
                 msg = msg[msg.find('**')+2:]
@@ -833,7 +920,7 @@ while loop:
                 #print msg[:100]              
  
                 #key = msg[:msg.find('**')]
-                msg = msg[msg.find('**')+2:]
+                #msg = msg[msg.find('**')+2:]
                 args_len = int(msg[:msg.find('**')])
                 msg = msg[msg.find('**')+2:]
                 args_lenn = int(msg[:msg.find('**')])
@@ -894,7 +981,7 @@ while loop:
                 #print addr, msg[:msg.rfind('**')]
                 # send split_position location send_cnt data
                 #key = msg[:msg.find('**')]
-                msg = msg[msg.find('**')+2:]
+                #msg = msg[msg.find('**')+2:]
                 split_position = msg[:msg.find('**')]
                 msg = msg[msg.find('**')+2:]
                 try:
