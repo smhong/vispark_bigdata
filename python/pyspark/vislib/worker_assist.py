@@ -127,8 +127,7 @@ def numpy_dtype_to_vispark_dtype(dtype, channel=''):
 
     return dtype
     
-    
-
+   
    
 def create_local_dict(local_code, indata_meta, other_meta, target_id, iter_type):
     #first_args = local_code[local_code.find('(')+1:local_code.find(',')]
@@ -258,7 +257,7 @@ def shape_tuple_or_list_to_dict(shape):
 
     tmp_shape = shape if shape[-1] > 4 else shape[:-1]
     
-    print tmp_shape
+    #print tmp_shape
 
     for elem in AXIS:
         if elem == 'x':
@@ -731,7 +730,7 @@ def get_block_grid(wr):
     grid  = [1,1,1]
 
     block_unit = 8
-    if 'z' in wr:
+    if 'z' not in wr:
         block_unit = block_unit * 2
  
     if 'x' in wr:

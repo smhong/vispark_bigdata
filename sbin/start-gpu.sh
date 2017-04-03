@@ -18,7 +18,9 @@ do
     fi
 done < $SLAVES_FILE
 
-#echo $NP
-#echo $HOST
+echo $NP
+echo $HOST
 
-mpirun -np $NP -host $HOST python $PYGPU_MANAGER
+MPI_OPTION="--mca oob_tcp_if_include ib0"
+
+mpirun $MPI_OPTION -np $NP -host $HOST python $PYGPU_MANAGER

@@ -29,6 +29,7 @@ from pyspark.traceback_utils import CallSite, first_spark_call
 from py4j.java_collections import ListConverter
 
 from pyspark.vislib.package import VisparkMeta
+from pyspark.vislib.assist  import profiler
 
 from hdfs import InsecureClient
 import getpass
@@ -40,6 +41,9 @@ from pyspark.vislib.worker_assist import generate_data_shape
 
 __all__ = ["VisparkRDD"]
 result_cnt = 0
+
+Noprof = profiler(work=False)
+
 
 def read_meta(path, halo=0):
     #ImageName = path[path.rfind('/')+1:]
@@ -77,7 +81,7 @@ def read_meta(path, halo=0):
     return ImgDim, ImgSplit
 
 
-def vispark_workrange(function_name, func_args= [], etc_args={}, work_range=[], halo=0, comm_type='full', code=None, main_data={}, num_iter=1, extern_code=None, output=[],path=''):
+def vispark_workrange(function_name, func_args= [], etc_args={}, work_range=[], halo=0, comm_type='full', code=None, main_data={}, num_iter=1, extern_code=None, output=[],path='', proto_type = True):
 
     #self._comm_type = comm_type
     #self._halo = halo
@@ -103,8 +107,9 @@ def vispark_workrange(function_name, func_args= [], etc_args={}, work_range=[], 
     _func_args = []
     for elem in func_args_name:
         #Remove Data in func_args
-        #if elem == func_args[0]:
-        #    continue
+        #if proto_type is True:
+        #    if elem == func_args[0]::
+        #        continue
         if elem in ['x', 'y', 'z']:
             VM = VisparkMeta()
             VM.name = elem
@@ -253,37 +258,217 @@ def evaluate_output(output,main_data={}):
 ########################################            
 # Vispark transformation 
 
-def execGPU(data, function_name, func_args= [], etc_args={}, work_range={}, halo=0, comm_type='full', code=None, main_data={}, numiter = 1, extern_code=None, output=[]):
 
+
+def execGPU(data, function_name, func_args= [], etc_args={}, work_range={}, halo=0, comm_type='full', code=None, main_data={}, numiter = 1, extern_code=None, output=[], profiler=Noprof):
+
+    #import time
+    profiler.start("execGPU")
+   
+      
     data_id,InGPU =  id_check(data)
+    
 
     if InGPU is False:
         _ ,data = send_data(data_id,data)
+    
         
     work_range = evaluate_work_range(work_range)
     output = evaluate_output(output)
+    
 
-    total_args, indata_meta = vispark_workrange(function_name, func_args, etc_args, work_range, halo, comm_type, code, main_data, num_iter = numiter, extern_code=extern_code, output=output)
+    total_args, indata_meta = vispark_workrange(function_name, func_args, etc_args, work_range, halo, comm_type, code, main_data, num_iter = numiter, extern_code=extern_code, output=output, proto_type = False)
+    
  
     _ , data = run_gpu(data_id,data,total_args,numiter) 
+    
+    
+    profiler.stop("execGPU")
 
     return data 
 
-def execGPUseq(data, function_name, func_args= [], etc_args={}, work_range={}, halo=0, comm_type='full', code=None, main_data={}, numiter = 1, extern_code=None, output=[]):
+def execGPUseq(data, function_name, func_args= [], etc_args={}, work_range={}, halo=0, comm_type='full', code=None, main_data={}, numiter = 1, extern_code=None, output=[],profiler=Noprof):
+    
+    profiler.start("execGPUseq")
 
     data_id,InGPU =  id_check(data)
 
     if InGPU is False:
         _ ,data = send_data_seq(data_id,data)
+    
         
     work_range = evaluate_work_range(work_range)
     output = evaluate_output(output)
+    
 
-    total_args, indata_meta = vispark_workrange(function_name, func_args, etc_args, work_range, halo, comm_type, code, main_data, num_iter = numiter, extern_code=extern_code, output=output)
+    total_args, indata_meta = vispark_workrange(function_name, func_args, etc_args, work_range, halo, comm_type, code, main_data, num_iter = numiter, extern_code=extern_code, output=output, proto_type = False)
+    
  
     _ , data = run_gpu(data_id,data,total_args,numiter) 
+    
+    
+    profiler.stop("execGPUseq")
 
     return data 
+
+def execGPUseq2(data, function_name, func_args= [], etc_args={}, work_range={}, halo=0, comm_type='full', code=None, main_data={}, numiter = 1, extern_code=None, output=[],profiler=Noprof):
+    
+    profiler.start("execGPUseq")
+
+    data_id,InGPU =  id_check('')
+
+    if InGPU is False:
+        _ ,data = send_data_seq2(data_id,data)
+    
+        
+    work_range = evaluate_work_range(work_range)
+    output = evaluate_output(output)
+    
+
+    total_args, indata_meta = vispark_workrange(function_name, func_args, etc_args, work_range, halo, comm_type, code, main_data, num_iter = numiter, extern_code=extern_code, output=output, proto_type = False)
+    
+ 
+    _ , data = run_gpu(data_id,data,total_args,numiter) 
+    
+    
+    profiler.stop("execGPUseq")
+
+    return data 
+
+def actionGPU(data,profiler=Noprof):
+    
+    profiler.start("recvGPU")
+
+    data = action_data(data)
+
+    profiler.stop("recvGPU")
+
+    return data
+
+
+def recvGPU(data,profiler=Noprof):
+    
+    profiler.start("recvGPU")
+
+    data = recv_data_new(data)
+
+    profiler.stop("recvGPU")
+
+    return data
+
+def cacheGPU(data,profiler=Noprof):
+    
+    profiler.start("cacheGPU")
+
+    data_id,InGPU =  id_check(data)
+
+    print data_id,InGPU
+
+    if InGPU is False:
+        _ ,data = send_data(data_id,data)
+ 
+    gpu_persist(data_id, data)
+    
+    
+    _, data_str = get_cache(data_id)
+
+    profiler.stop("cacheGPU")
+
+    return data_str
+
+def shuffleReady(tag=None):
+
+    if tag == None:
+        tag = id_generator("TAG_")
+
+    signal="wake"
+    address=gethostname()
+
+    #send_signal_socket(signal,tag,address,address,reply=True)   
+    send_signal_socket(signal,tag,"ib1",address,reply=True)   
+
+    #address = "/tmp/shuffle_ack"
+    #clisock = socket(AF_UNIX, SOCK_STREAM)
+    #clisock.connect(address)
+
+    #msg = clisock.recv(msg_size)
+    #msg = msg[:msg.find('**')]
+
+    #if msg != tag:
+    #    print "Something Wrong" 
+
+    return tag
+    
+def extractHalo(key,value,dic):
+    
+    data_id,InGPU =  id_check(value)
+
+    print "extract" ,data_id
+    block_idx = dic["nameToidx"][key]
+
+    import cPickle as pickle
+    args_str = pickle.dumps((block_idx,dic),-1)
+
+    args_len=len(args_str)
+    args_str += '0'*msg_size
+    lenn1 = len(args_str)/msg_size
+
+    msg_tag='extract_new'
+
+    
+    sending_str = "%s**%s**%s**%s**"%(str(data_id),msg_tag,str(args_len),str(lenn1))
+    sending_str += '0'*msg_size
+
+    send_str =''
+    #send_str += sending_str[:msg_size]
+    send_str += args_str[:lenn1*msg_size]
+
+    address = "/tmp/gpu_manager"
+    clisock = socket(AF_UNIX, SOCK_STREAM)
+    clisock.connect(address)
+
+
+    clisock.send(sending_str[:msg_size])
+
+    sent_num = 0
+    while sent_num < lenn1:
+        sent_flag = clisock.send(send_str[sent_num*msg_size:(sent_num+1)*msg_size])
+        if sent_flag == 0:
+            raise RuntimeError("Run connection broken")
+        sent_num += 1
+
+
+
+    #value += send_str
+
+    return (key,value)
+
+def appendHalo(key,value,dic):
+    
+    data_id,InGPU =  id_check(value)
+    print "append" ,data_id
+
+    block_idx = dic["nameToidx"][key]
+
+    import cPickle as pickle
+    args_str = pickle.dumps((block_idx,dic),-1)
+
+    args_len=len(args_str)
+    args_str += '0'*msg_size
+    lenn1 = len(args_str)/msg_size
+
+    msg_tag='append_new'
+
+    sending_str = "%s**%s**%s**%s**"%(str(data_id),msg_tag,str(args_len),str(lenn1))
+    sending_str += '0'*msg_size
+
+    send_str =''
+    send_str += sending_str[:msg_size]
+    send_str += args_str[:lenn1*msg_size]
+
+    value += send_str
+
+    return (key,value)
 
 
 class VisparkRDD(object):
@@ -532,9 +717,9 @@ class VisparkRDD(object):
                 #except:
                 #print "data saved"
             else :
-                #f = open('/tmp/%s_%04d.raw'%(name,FileIdx),"wb")
-                #f.write(data)
-                #f.close() 
+                f = open('/tmp/%s.raw'%(name),"wb")
+                f.write(data)
+                f.close() 
                 #print "data saved"
                 pass
             
@@ -596,33 +781,74 @@ class VisparkRDD(object):
 
 
     def map(self, f, preservesPartitioning=False):
-        
+    
+        new_rdd = self._rdd       
+ 
         if self._InGPU == True:
-            self._rdd = self._rdd.map(lambda (key, data):recv_data(key,data))
+            new_rdd = new_rdd.map(lambda (key, data):recv_data(key,data))
             #self._rdd = self._rdd.map(lambda (key, data):recv_data(key))
             self._InGPU = False
 
-        self._rdd = self._rdd.map(lambda (key, data):(key,recv_data_new(data)))
+        #new_rdd = new_rdd.map(lambda (key, data):(key,recv_data_new(data)))
 
         def func(_, iterator):
             return imap(f, iterator)
         
-        self._rdd = self._rdd.mapPartitionsWithIndex(func, preservesPartitioning)
+        new_rdd = new_rdd.mapPartitionsWithIndex(func, preservesPartitioning)
         
         #return self
-        return VisparkRDD(target_rdd = self._rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
+        return VisparkRDD(target_rdd = new_rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
 
-    def collect(self):
+    def mapgpu(self, f, preservesPartitioning=False):
+    
+        new_rdd = self._rdd       
+ 
+        #if self._InGPU == True:
+        #    new_rdd = new_rdd.map(lambda (key, data):recv_data(key,data))
+        #    #self._rdd = self._rdd.map(lambda (key, data):recv_data(key))
+        #    self._InGPU = False
+
+        #new_rdd = new_rdd.map(lambda (key, data):(key,recv_data_new(data)))
+
+        def func(_, iterator):
+            return imap(f, iterator)
+        
+        new_rdd = new_rdd.mapPartitionsWithIndex(func, preservesPartitioning)
+        
+        #return self
+        return VisparkRDD(target_rdd = new_rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
+
+
+    def collect_debug(self):
        
-        if self._InGPU == True:
-            self._rdd = self._rdd.map(lambda (key, data):recv_data(key,data))
+        #if self._InGPU == True:
+        #    self._rdd = self._rdd.map(lambda (key, data):recv_data(key,data))
             #self._rdd = self._rdd.map(lambda (key, data):recv_data(key))
-            self._InGPU = False
+        #    self._InGPU = False
        
-        self._rdd = self._rdd.map(lambda (key, data):(key,recv_data_new(data)))
+        #self._rdd = self._rdd.map(lambda (key, data):(key,recv_data_new(data)))
 
 
         return self._rdd.collect()
+
+
+
+    def collect(self):
+    
+        try :       
+            if self._InGPU == True:
+                self._rdd = self._rdd.map(lambda (key, data):recv_data(key,data))
+                #self._rdd = self._rdd.map(lambda (key, data):recv_data(key))
+                self._InGPU = False
+       
+            return self._rdd.map(lambda (key, data):(key,recv_data_new(data))).collect()
+        except:
+            pass
+
+        return self._rdd.collect()
+    
+
+
 
 
     def get_cache(self):
@@ -665,6 +891,7 @@ class VisparkRDD(object):
     def takeSample(self, withReplacement, num, seed=None):
         return self._rdd.takeSample(withReplacement,num,seed)
 
+
     def reduceByKey(self, func, numPartitions=None):
     
         if self._InGPU == True:
@@ -673,9 +900,22 @@ class VisparkRDD(object):
             self._InGPU = False
         
         #return self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
-        self._rdd = self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
+        new_rdd = self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
         
-        return VisparkRDD(target_rdd = self._rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
+        return VisparkRDD(target_rdd = new_rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
+
+    def reduceByKeyGPU(self, func, numPartitions=None):
+    
+        if self._InGPU == True:
+            #self._rdd = self._rdd.map(lambda (key, data):recv_data(key))
+            self._rdd = self._rdd.map(lambda (key, data):recv_data(key,data))
+            self._InGPU = False
+        
+        #return self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
+        new_rdd = self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
+        
+        new_rdd = new_rdd.map(lambda (key,data): (shuffleReady(key),data))
+        return VisparkRDD(target_rdd = new_rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
 
     def groupByKey(self, numPartitions=None):
  
@@ -691,9 +931,30 @@ class VisparkRDD(object):
         #    self._InGPU = False
         
         #return self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
-        self._rdd = self._rdd.groupByKey()
+        #self._rdd = self._rdd.groupByKey()
         
-        return VisparkRDD(target_rdd = self._rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
+        return VisparkRDD(target_rdd = self._rdd.groupByKey(), path= self._path, name= self._name, gpu_flag=self._InGPU)
+
+    def shuffleByKeyGPU(self, numPartitions=None):
+ 
+        if self._InGPU == True:
+            #self._rdd = self._rdd.map(lambda (key, data):recv_data(key))
+            self._rdd = self._rdd.map(lambda (key, data):recv_data(key,data))
+            self._InGPU = False
+    
+        #self._rdd = self._rdd.map(lambda (key, data):(key,recv_data_new(data)))
+        #if self._InGPU == True:
+        #    #self._rdd = self._rdd.map(lambda (key, data):recv_data(key))
+        #    self._rdd = self._rdd.map(lambda (key, data):recv_data(key,data))
+        #    self._InGPU = False
+        
+        #return self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
+        #self._rdd = self._rdd.groupByKey()
+        #new_rdd = self._rdd.map(lambda (key,data): (shuffleReady(key),data))
+        new_rdd =self._rdd.map(lambda (key,data): (shuffleReady(key),data))
+        
+        return VisparkRDD(target_rdd = new_rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
+
 
 
 
@@ -708,15 +969,15 @@ class VisparkRDD(object):
 
     def mapValues(self, func):
     
-        self._rdd = self._rdd.map(lambda (key, data):(key,recv_data_new(data)))
+        #self._rdd = self._rdd.map(lambda (key, data):(key,recv_data_new(data)))
         #if self._InGPU == True:
             #self._rdd = self._rdd.map(lambda (key, data):recv_data(key))
         #    self._rdd = self._rdd.map(lambda (key, data):recv_data(key,data))
         #    self._InGPU = False
         
-        self._rdd = self._rdd.mapValues(func)
+        #self._rdd = self._rdd.mapValues(func)
         
-        return VisparkRDD(target_rdd = self._rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
+        return VisparkRDD(target_rdd = self._rdd.mapValues(func), path= self._path, name= self._name, gpu_flag=self._InGPU)
 
 
 
