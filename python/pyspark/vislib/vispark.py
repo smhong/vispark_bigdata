@@ -12,6 +12,7 @@ from tempfile import NamedTemporaryFile
 from itertools import chain, ifilter, imap
 import atexit
 import numpy
+import time
 
 from pyspark import accumulators
 from pyspark.accumulators import Accumulator                                                                                                                                                                                                 
@@ -29,6 +30,7 @@ from pyspark.traceback_utils import CallSite, first_spark_call
 from py4j.java_collections import ListConverter
 
 from pyspark.vislib.package import VisparkMeta
+#from package import VisparkMeta
 from pyspark.vislib.assist  import profiler
 
 from hdfs import InsecureClient
@@ -376,6 +378,29 @@ def cacheGPU(data,profiler=Noprof):
 
     return data_str
 
+def shuffleCombine(key,values):
+
+    tag = id_generator("TAG_")
+
+    #signal="ready"
+    address=gethostname()
+    send_request(tag,values)
+  
+
+    signal="check" 
+  
+    reply = "none"
+    data_id = None
+
+    while reply == "none":
+        time.sleep(0.05)
+        reply = send_signal(signal,tag)
+
+        print "Receive ", reply  
+
+    return key
+
+
 def shuffleReady(tag=None):
 
     if tag == None:
@@ -387,6 +412,11 @@ def shuffleReady(tag=None):
     #send_signal_socket(signal,tag,address,address,reply=True)   
     send_signal_socket(signal,tag,"ib1",address,reply=True)   
 
+    """
+    signal="ready"
+    address=gethostname()
+    send_signal(signal,tag,[address])
+    """
     #address = "/tmp/shuffle_ack"
     #clisock = socket(AF_UNIX, SOCK_STREAM)
     #clisock.connect(address)
@@ -914,8 +944,14 @@ class VisparkRDD(object):
         #return self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
         new_rdd = self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
         
-        new_rdd = new_rdd.map(lambda (key,data): (shuffleReady(key),data))
+        #new_rdd =new_rdd.map(lambda (key,data): (shuffleCombine(key,data)))
+        #new_rdd = new_rdd.map(lambda (key,data): (shuffleReady(key),data))
         return VisparkRDD(target_rdd = new_rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
+
+    def fillKeyGPU(self):
+        new_rdd =self._rdd.map(lambda (key,data): (shuffleCombine(key,data),data))
+        return VisparkRDD(target_rdd = new_rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
+
 
     def groupByKey(self, numPartitions=None):
  
@@ -951,7 +987,8 @@ class VisparkRDD(object):
         #return self._rdd.combineByKey(lambda x: x, func, func, numPartitions)
         #self._rdd = self._rdd.groupByKey()
         #new_rdd = self._rdd.map(lambda (key,data): (shuffleReady(key),data))
-        new_rdd =self._rdd.map(lambda (key,data): (shuffleReady(key),data))
+        #new_rdd =self._rdd.map(lambda (key,data): (shuffleCombine(key),data))
+        new_rdd =self._rdd.map(lambda (key,data): (shuffleCombine(key,data)))
         
         return VisparkRDD(target_rdd = new_rdd, path= self._path, name= self._name, gpu_flag=self._InGPU)
 

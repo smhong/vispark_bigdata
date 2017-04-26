@@ -152,13 +152,15 @@ def send_terminal(key):
     clisock.send(sending_str[:msg_size])
 
 
-def send_signal(signal,data_id,etc=[],address='127.0.0.1',port=int(3939),reply=True):
+def send_signal_new(signal,data_id,address,etc=[],port=int(4949),reply=True):
     #clisock = socket(AF_INET, SOCK_STREAM)
     #clisock.connect((address, port))
     
-    address = "/tmp/gpu_manager"
-    clisock = socket(AF_UNIX, SOCK_STREAM)
-    clisock.connect(address)
+    #clisock = socket(AF_UNIX, SOCK_STREAM)
+    #clisock.connect(address)
+    #host_name = gethostname()
+    clisock = socket(AF_INET, SOCK_STREAM)
+    clisock.connect((address,4949))
 
     sending_str = "%s**%s**"%(str(data_id),signal)
 
@@ -176,6 +178,33 @@ def send_signal(signal,data_id,etc=[],address='127.0.0.1',port=int(3939),reply=T
     #
       
     return True
+
+
+def send_signal(signal,data_id,etc=[],address='127.0.0.1',port=int(3939),reply=True):
+    #clisock = socket(AF_INET, SOCK_STREAM)
+    #clisock.connect((address, port))
+    
+    address = "/tmp/gpu_manager"
+    #clisock = socket(AF_UNIX, SOCK_STREAM)
+    #clisock.connect(address)
+    host_name = gethostname()
+    clisock = socket(AF_INET, SOCK_STREAM)
+    clisock.connect((host_name,4949))
+
+    sending_str = "%s**%s**"%(str(data_id),signal)
+
+    for elem in etc:
+        sending_str += "%s**"%(str(elem))
+        
+    sending_str += '0'*msg_size
+
+    clisock.send(sending_str[:msg_size])
+
+    if reply: 
+        msg = clisock.recv(msg_size)
+        reply = msg[:msg.find('**')]
+ 
+    return reply
  
 def recv_halo(data_id,data_str,address='127.0.0.1',port=int(3939)):
     #result = send_signal("run",data_id,address,port)
@@ -371,6 +400,49 @@ def send_data(data_id,data_array,halo=0,address='127.0.0.1',port=int(3939)):
     return (data_id,send_str)
 
 
+def send_request(data_id,data_array,halo=0,address='127.0.0.1',port=int(3939)):
+    import time
+    #print_bblue("Send Seq: %s [%d]"%(data_id,len(data_array)))
+
+    host_name = gethostname()
+    clisock = socket(AF_INET, SOCK_STREAM)
+    clisock.connect((host_name,4949))
+
+    send_str=''
+    data_str = ''
+
+    #for i in range(len(data_array)):
+    for elem in data_array:
+        data_str += elem
+ 
+
+    data_len=len(data_str)
+    data_str += '0'*msg_size
+    lenn1 = len(data_str)/msg_size
+    num_elems = len(data_array)
+
+    
+    msg_tag="ready"
+    sending_str = "%s**%s**%s**%s**%s**"%(str(data_id),msg_tag,str(data_len),str(lenn1),str(num_elems))
+    sending_str += '0'*msg_size
+            
+    send_str += sending_str[:msg_size]
+    send_str += data_str[:lenn1*msg_size]
+
+    lenn = len(send_str)/msg_size
+
+    temp_time = time.time()
+    sent_num = 0
+    while sent_num < lenn:
+        sent_flag = clisock.send(send_str[sent_num*msg_size:(sent_num+1)*msg_size])
+        if sent_flag == 0:
+            raise RuntimeError("Run connection broken")
+        sent_num += 1
+    bandwidth = (sent_num)*msg_size / (time.time() - temp_time) / (1048576.0)
+ 
+    return True
+
+
 def send_data_seq2(data_id,data_array,halo=0,address='127.0.0.1',port=int(3939)):
     import time
     #print_bblue("Send Seq: %s [%d]"%(data_id,len(data_array)))
@@ -505,9 +577,12 @@ def gpu_persist(data_id,data_str,address='127.0.0.1',port=int(3939)):
             #clisock.connect((address, int(port)))
             #print "CPU send data to GPU worker ", data_id
             address = "/tmp/gpu_manager"
-            clisock = socket(AF_UNIX, SOCK_STREAM)
-            clisock.connect(address)
-            
+            #clisock = socket(AF_UNIX, SOCK_STREAM)
+            #clisock.connect(address)
+            host_name = gethostname()
+            clisock = socket(AF_INET, SOCK_STREAM)
+            clisock.connect((host_name,4949))
+       
             
             #print_bblue("Persist : %s"%(data_id))
             #lenn = len(data_str)/msg_size
@@ -560,9 +635,13 @@ def shuffleGPU(data_str,address='127.0.0.1',port=int(3939)):
             #clisock.connect((address, int(port)))
             #print "CPU send data to GPU worker ", data_id
             address = "/tmp/gpu_manager"
-            clisock = socket(AF_UNIX, SOCK_STREAM)
-            clisock.connect(address)
-        
+            #clisock = socket(AF_UNIX, SOCK_STREAM)
+            #clisock.connect(address)
+            host_name = gethostname()
+            clisock = socket(AF_INET, SOCK_STREAM)
+            clisock.connect((host_name,4949))
+
+
             #data_id = data 
  
             #print_bblue("Recv : %s"%(data_id))
@@ -627,9 +706,13 @@ def action_data(data_str,address='127.0.0.1',port=int(3939)):
         if True:
 
             address = "/tmp/gpu_manager"
-            clisock = socket(AF_UNIX, SOCK_STREAM)
-            clisock.connect(address)
-        
+            #clisock = socket(AF_UNIX, SOCK_STREAM)
+            #clisock.connect(address)
+            host_name = gethostname()
+            clisock = socket(AF_INET, SOCK_STREAM)
+            clisock.connect((host_name,4949))
+
+
             msg_tag="action"
             sending_str = "%s**%s**"%(str(data_id),msg_tag)
             sending_str += '0'*msg_size
@@ -677,9 +760,13 @@ def recv_data_new(data_str,address='127.0.0.1',port=int(3939)):
             #clisock.connect((address, int(port)))
             #print "CPU send data to GPU worker ", data_id
             address = "/tmp/gpu_manager"
-            clisock = socket(AF_UNIX, SOCK_STREAM)
-            clisock.connect(address)
-        
+            #clisock = socket(AF_UNIX, SOCK_STREAM)
+            #clisock.connect(address)
+            host_name = gethostname()
+            clisock = socket(AF_INET, SOCK_STREAM)
+            clisock.connect((host_name,4949))
+
+
             #data_id = data 
  
             #print_bblue("Recv : %s"%(data_id))
@@ -812,9 +899,12 @@ def recv_data(data_id,data_str,address='127.0.0.1',port=int(3939)):
             #clisock.connect((address, int(port)))
             #print "CPU send data to GPU worker ", data_id
             address = "/tmp/gpu_manager"
-            clisock = socket(AF_UNIX, SOCK_STREAM)
-            clisock.connect(address)
-            
+            #clisock = socket(AF_UNIX, SOCK_STREAM)
+            #clisock.connect(address)
+            host_name = gethostname()
+            clisock = socket(AF_INET, SOCK_STREAM)
+            clisock.connect((host_name,4949))
+
             #print_bblue("Recv : %s"%(data_id))
                 
             #print "Recv Ready"
@@ -1914,47 +2004,7 @@ def gpu_htod(array_data, args_dict,ctx,stream):
     #print "I DID NOT YOU TO RE-MATCH"
     
 
-
-    """
-    vm_in =  args_dict['vm_in']
- 
-    ######################################################
-    #Get Data , Information     
-    import numpy
-
-    #print vm_in
-
-    data_shape = vm_in.data_shape
-    full_data_shape = vm_in.full_data_shape
-    data_halo       = vm_in.data_halo
-    data_type       = vm_in.data_type
-
-    if data_type == 'uchar':
-        data_type = numpy.uint8
-    elif data_type == 'float':
-        data_type = numpy.float32
-   
-    """
-    ######################################################
-    #Debugging Print
-    if False:
-    #if True:
-        from PIL import Image
-        #import os
-        target_id =  args_dict['target_id']
-        Image.fromstring('L',(array_data.shape[1],array_data.shape[0]),array_data).save("/tmp/vispark_input_%04d.png"%(int(target_id)))
-
-    if False:
-        target_id =  args_dict['target_id']
-        f = open("/tmp/vispark_input_%04d.raw"%(int(target_id)),"w+")
-        #f.write(array_data)
-        f.write(array_data[:,:,:,0].tostring())
-        f.close()
-
-    #import pycuda.driver as cuda
-    #h_A = cuda.pagelocked_empty(array_data.nbytes, dtype=data_type)  
-    #h_A = cuda.pagelocked_empty(array_data.shape, dtype=array_data.dtype)   
-    d_A = cuda.mem_alloc(array_data.nbytes)
+    d_A = cuda.mem_alloc(len(array_data))
     
 
     #d_A_sh = data_range_to_cuda_in(vm_in.data_shape, vm_in.full_data_shape,vm_in.buffer_shape,data_halo=vm_in.data_halo, cuda=cuda)
@@ -1968,23 +2018,28 @@ def gpu_htod(array_data, args_dict,ctx,stream):
 
     #array_data.shape = (2,256,256)
 
+    array_data_dtype = args_dict['indata_type']
+    array_data_shape = args_dict['indata_shape']
+    if 'indata_num' in args_dict:
+        array_data_shape = (args_dict['indata_num'],)+ array_data_shape
+
     vm_indata =  VisparkMeta()
     vm_indata.data_kind  = 'devptr'
     vm_indata.data       = d_A
-    vm_indata.data_type  = array_data.dtype
-    vm_indata.data_shape = shape_tuple_or_list_to_dict(array_data.shape)
+    vm_indata.data_type  = array_data_dtype
+    vm_indata.data_shape = shape_tuple_or_list_to_dict(array_data_shape)
     vm_indata.dirt_flag  = False
     vm_indata.isPersist  = False
-    vm_indata.result_size =array_data.shape
+    vm_indata.result_size =array_data_shape
     vm_indata.comma_cnt = 0
     vm_indata.kernel_code =""
     vm_indata.mod = None
     #if True:
     #    vm_indata.ori_data = array_data
     
-    channel = len(vm_indata.data_shape) - len(array_data.shape)
-    channel = '' if channel == 0 else array_data.shape[channel]
-    vm_indata.cu_dtype   = numpy_dtype_to_vispark_dtype(array_data.dtype, channel)
+    channel = len(vm_indata.data_shape) - len(array_data_shape)
+    channel = '' if channel == 0 else array_data_shape[channel]
+    vm_indata.cu_dtype   = numpy_dtype_to_vispark_dtype(array_data_dtype, channel)
 
     # other infomations
     #array_data_shape = array_data.shape
@@ -2289,12 +2344,12 @@ def gpu_run(args_dict, in_process, ctx,stream, key=-1):
 
     #print cuda_args
     #print cuda_args
-    stream.synchronize()
+    #stream.synchronize()
 
     #cuda_func(*cuda_args, block=block, grid=grid)
     #print cuda_args
     cuda_func(*cuda_args, block=block, grid=grid, stream=stream)
-    stream.synchronize()
+    #stream.synchronize()
   
     #print function_name ,"Done"
     #    stream.synchronize()

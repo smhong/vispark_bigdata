@@ -3,6 +3,11 @@
 
 PYGPU_MANAGER=$SPARK_HOME/python/pyspark/vislib/gpu_manager.py
 SLAVES_FILE=$SPARK_HOME/conf/slaves
+#PREFIX="--prefix $LOCAL_HOME"
+MPIRUN=`which mpirun`
+
+
+echo $MPIRUN 
 
 NP=0
 HOST=""
@@ -21,6 +26,7 @@ done < $SLAVES_FILE
 echo $NP
 echo $HOST
 
-MPI_OPTION="--mca oob_tcp_if_include ib0"
+MPI_OPTION="--mca oob_tcp_if_include ib0 --mca orte_base_help_aggregate 0"
 
-mpirun $MPI_OPTION -np $NP -host $HOST python $PYGPU_MANAGER
+#mpirun $MPI_OPTION -np $NP -host $HOST python $PYGPU_MANAGER $SLAVES_FILE
+$MPIRUN $MPI_OPTION -np $NP -host $HOST python $PYGPU_MANAGER $SLAVES_FILE

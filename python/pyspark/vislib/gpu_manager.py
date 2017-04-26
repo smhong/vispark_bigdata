@@ -6,20 +6,20 @@ import subprocess
 from mpi4py import MPI
 
 import os
+
 SPARK_HOME=os.environ["SPARK_HOME"]
 PYSPARK_PATH = "%s/python/"%SPARK_HOME
-#PY4J_PATH ="%s/python/lib/py4j-0.8.2.1-src.zip"%SPARK_HOME
 PY4J_PATH ="%s/python/lib/py4j-0.10.4-src.zip"%SPARK_HOME
 
-#print PYSPARK_PATH
-#print PY4J_PATH
+if PYSPARK_PATH not in sys.path:
+    sys.path.append(PYSPARK_PATH)
+if PY4J_PATH not in sys.path:
+    sys.path.append(PY4J_PATH)
 
 server_list={}
-server_list_file="%s/conf/slaves"%(os.environ.get('SPARK_HOME'))
-
-#print server_list_file
-
+server_list_file=sys.argv[1]
 server_rank = 0
+
 with open(server_list_file) as f:
     lines =f.readlines()
 
@@ -75,23 +75,9 @@ while False:
         break
 
 
-if PYSPARK_PATH not in sys.path:
-    sys.path.append(PYSPARK_PATH)
-if PY4J_PATH not in sys.path:
-    sys.path.append(PY4J_PATH)
-
 
 #from gpu_worker import gpu_run, gpu_htod, gpu_dtoh, \
-"""
-from pyspark.vislib.gpu_worker import gpu_run, gpu_htod, gpu_dtoh, \
-                       extract_halo_gpu, append_halo_gpu ,extract_halo_cpu, append_halo_cpu, \
-                       reading_args, reshape_data, \
-                       check_device_mem, \
-                       save_halo, read_halo, \
-                       clear_mem, 
-"""
-
-from pyspark.vislib.gpu_worker import *
+from gpu_worker import *
 
 
 CUDA_ARCH, logging=read_conf()
@@ -122,7 +108,7 @@ def print_red(source):
         print bcolors.FAIL,source, host_name, bcolors.ENDC
 
 def print_blue(source):
-    if False:
+    if logging:
         print bcolors.OKBLUE,source, host_name, bcolors.ENDC
 
 def print_bblue(source):
@@ -165,27 +151,31 @@ if not logging:
 else:
     print "[%s] Launch Process among %d/%d [Number of CUDA Device = %d] chatter"%(host_name,mpi_rank,mpi_size,maxDevice)
 
-#svrsock = socket(AF_INET, SOCK_STREAM)
-svrsock = socket(AF_UNIX, SOCK_STREAM)
+port = int(4949)
+svrsock = socket(AF_INET, SOCK_STREAM)
+#svrsock = socket(AF_UNIX, SOCK_STREAM)
 #svrsock = socket(AF_UNIX, SOCK_DGRAM)
 #svrsock.setsockopt(SOL_SOCKET, TCP_NODELAY, 1)
-#svrsock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+svrsock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 #svrsock.setsockopt(SOL_SOCKET, SO_REUSEADDR, "ib0"+"\0")
 #svrsock.setsockopt(SOL_SOCKET, SO_REUSEADDR, "lo"+"\0")
 
+svrsock.bind((host_name, port))
+
 #port = int(sys.argv[1])
-#port = int(3939)
 #svrsock.bind(('192.168.1.11', port))
-try :
-    os.remove("/tmp/gpu_manager")
-except OSError:
-    pass
+
+#try :
+#    os.remove("/tmp/gpu_manager")
+#except OSError:
+#    pass
 
 #svrsock.bind(('127.0.0.1', port))
-svrsock.bind("/tmp/gpu_manager")
+#svrsock.bind("/tmp/gpu_manager")
 #svrsock.listen(0)
 #svrsock.listen(1024)
 #svrsock.listen(4096)
+#svrsock.listen(16)
 svrsock.listen(16)
 
 #success=False
@@ -242,6 +232,8 @@ args_dict = {}
 devptr_dict = {}
 halo_info_dict = {}
 
+request_dict={}
+data_miss_dict={}
 data_dict_cache={}
 halo_dict = data_dict_cache
 args_dict_cache={}
@@ -332,7 +324,7 @@ while loop:
             if command == 'persist':
 
                 if 'vm_indata' not in args_dict[key]:
-                    print_blue("Upload in Persist %s"%(key))
+                    #print_blue("Upload in Persist %s"%(key))
                     gpu_htod(data_dict[key],args_dict[key],ctx,stream[key])
                     data_dict[key] = None
               
@@ -348,7 +340,7 @@ while loop:
  
                 args_dict[key]['vm_indata'] = args_dict[key]['vm_out']
                 #args_dict[key]['vm_indata'].isPersist = True
-                print_bold("Cached %s"%args_dict[key]['vm_indata'].data)
+                #print_bold("Cached %s"%args_dict[key]['vm_indata'].data)
 
                 import copy
         
@@ -364,14 +356,14 @@ while loop:
                 import copy
 
                 if 'vm_indata' in args_dict_cache[key]:
-                    print_blue("Cache hit %s"%(key))
+                    #print_blue("Cache hit %s"%(key))
                     args_dict[key] = copy.copy(args_dict_cache[key])
                     data_dict[key] = None
 
                     #args_dict[key]['vm_out'] = copy.copy(args_dict[key]['vm_indata'])
                     args_dict[key]['vm_out'] = args_dict[key]['vm_indata']
 
-                    print_bold( "Hit %s"%args_dict[key]['vm_out'].data)
+                    #print_bold( "Hit %s"%args_dict[key]['vm_out'].data)
                 
             if command == 'halo_add':
                 #msg = msg[msg.find('**')+2:]
@@ -478,46 +470,18 @@ while loop:
 
                 import cPickle as pickle
                 target_id, shape_dict= pickle.loads(args_str)
-               
-                """ 
-                #target_id = int('%04d'%(int(target_id[target_id.rfind('_')+1:])))
-                _target_id = target_id
-
-                if type (target_id) == int:
-                    pass
-                else :
-                    try:
-                        target_id = target_id[target_id.rfind('_')+1:]
-
-                        #print target_id
-                        # kmeans
-                        if target_id.find('.') > 0 :
-                            target_id = target_id[:target_id.find('.')]
-                        target_id = int(target_id)
-                    except:
-                        target_id = _target_id[_target_id.rfind('/')+1:_target_id.rfind('.')]
-                        target_id = int(target_id)
-                #args_dict[key]['vm_in'] = args_list[target_id]
-                """
-
+              
                 args_dict[key]['indata_shape'] = shape_dict['indata_shape']
                 args_dict[key]['indata_type']  = shape_dict['indata_type']
                 args_dict[key]['data_halo']    = shape_dict['data_halo']
                 args_dict[key]['target_id']    = target_id
+                data_dict[key] = data_str
                 
                 stream[key] = cuda.Stream()
 
-                data_dict[key] = reshape_data(data_str,args_dict[key])
-
-                #if in_process == True :
-                if False:
-                    gpu_htod(data_dict[key],args_dict[key],ctx,stream[key])
-
-                    data_dict[key] = None
-                    
-                #print "Send    : %s"%key
-            
+                            
             if command == 'send_seq2':
+                #print "[%s] send_seq 2 start : "%host_name, time.time()
                 data_len = int(msg[:msg.find('**')])
                 msg = msg[msg.find('**')+2:]
                 lenn1 = int(msg[:msg.find('**')])
@@ -533,15 +497,47 @@ while loop:
                 else : args_dict[key] = {}
 
 
+                key_list= []
+
                 #Take 40ms 
-                data_string = ""
                 for i in range(num_elems): 
                     data_key= data_str[:data_str.find('**')]
                     data_str= data_str[data_str.find('**')+2:]
+                   
+                    key_list.append(data_key)
+ 
+                    #if data_key not in data_dict_cache:
+                    #    miss_list.append(data_key)
+
+
+                """
+                if len(miss_list) > 0:
+                    import cPickle as pickle
+                    data_str = pickle.dumps(miss_list,-1)
+
+                    data_len = len(data_str)
+                    data_str += '0'*msg_size
+                    lenn =  len(data_str)/msg_size 
+
+                    msg_tag = "request"
+                    sending_str = "%s**%s**%s**%s**"%(str(key),msg_tag,str(data_len),str(lenn))
                     
+                    for elem in server_list:
+                        newsock = socket(AF_INET, SOCK_STREAM)
+                        newsock.connect((elem,4949))
+                        newsock.send(sending_str[:msg_size])
+                """
+
+                data_string = ""
+
+                i = 0
+
+                for data_key in key_list:
+ 
                     array_info , array_str = data_dict_cache[data_key] 
 
                     data_string += array_str
+                    
                     if i == 0:
 
                         import cPickle as pickle
@@ -552,23 +548,16 @@ while loop:
                         args_dict[key]['indata_num']   = num_elems
                         args_dict[key]['target_id']    = 0
                 
-
+                        i+=1
                 
                 stream[key] = cuda.Stream()
 
-                #print len(data_string)
-                #Take 30ms 
-                data_dict[key] = reshape_data(data_string,args_dict[key])
-                data_dict_cache={}
-
-                #print data_dict[key]
-
-                #if in_process == True :
-                if False:
-                    gpu_htod(data_dict[key],args_dict[key],ctx,stream[key])
-
-                    data_dict[key] = None
+                data_dict[key] = data_string
+                #data_dict_cache={}
                 
+                #print "[%s] send_seq 2 end : "%host_name, time.time()
+
+                                
  
             if command == 'send_seq':
 
@@ -609,27 +598,7 @@ while loop:
 
                 import cPickle as pickle
                 target_id, shape_dict= pickle.loads(args_str)
-                """
-                #target_id = int('%04d'%(int(target_id[target_id.rfind('_')+1:])))
-                _target_id = target_id
-
-                if type (target_id) == int:
-                    pass
-                else :
-                    try:
-                        target_id = target_id[target_id.rfind('_')+1:]
-
-                        #print target_id
-                        # kmeans
-                        if target_id.find('.') > 0 :
-                            target_id = target_id[:target_id.find('.')]
-                        target_id = int(target_id)
-                    except:
-                        target_id = _target_id[_target_id.rfind('/')+1:_target_id.rfind('.')]
-                        target_id = int(target_id)
-                """
-                #args_dict[key]['vm_in'] = args_list[target_id]
-                
+                                
                 args_dict[key]['indata_shape'] = shape_dict['indata_shape']
                 args_dict[key]['indata_type']  = shape_dict['indata_type']
                 args_dict[key]['data_halo']    = shape_dict['data_halo']
@@ -638,16 +607,9 @@ while loop:
                 
                 stream[key] = cuda.Stream()
 
-                data_dict[key] = reshape_data(data_str,args_dict[key])
+                data_dict[key] = data_str
 
-                #if in_process == True :
-                if False:
-                    gpu_htod(data_dict[key],args_dict[key],ctx,stream[key])
-
-                    data_dict[key] = None
-                    
-                #print "Send    : %s"%key
-              
+                              
             elif command == 'recv':
                         
                 # send split_position location send_cnt data
@@ -665,7 +627,7 @@ while loop:
                         #data_dict[key]   = gpu_dtoh(args_dict[key],ctx)
                         data_dict[key]  = gpu_dtoh(data_dict[key],args_dict[key],ctx,stream[key])
             
-
+                    print "[%s] run end : "%host_name, time.time()
                     data_array = data_dict[key]
 
                     shape_dict={}
@@ -708,6 +670,9 @@ while loop:
                     del args_dict[key]
                     del data_dict[key]
                     
+                    print "[%s] recv end : "%host_name, time.time()
+                    print "\n\n\n"
+                    
             elif command == 'action':
                         
                 # send split_position location send_cnt data
@@ -724,6 +689,7 @@ while loop:
                     if True:
                         #data_dict[key]   = gpu_dtoh(args_dict[key],ctx)
                         data_dict[key]  = gpu_dtoh(data_dict[key],args_dict[key],ctx,stream[key])
+                    print "[%s] run end : "%host_name, time.time()
             
 
                     data_array = data_dict[key]
@@ -743,6 +709,7 @@ while loop:
                     
                     del args_dict[key]
                     del data_dict[key]
+                    #print "[%s] run end 2: "%host_name, time.time()
                     
 
                     """
@@ -760,6 +727,8 @@ while loop:
                     sending_str = "%s**"%(str(new_data_key))
                     sending_str += '0'*msg_size
                     clisock.send(sending_str[:msg_size])
+                    
+                    print "[%s] run ack: "%host_name, time.time()
 
 
                     #print "Return  : %s"%key
@@ -836,6 +805,7 @@ while loop:
 
  
             elif command == 'run':
+                print "[%s] run start : "%host_name, time.time()
 
                 #key = msg[:msg.find('**')]
                 #msg = msg[msg.find('**')+2:]
@@ -924,7 +894,189 @@ while loop:
                 clisock.send(sending_str[:msg_size])
 
                 #print "[%s] Finish Shuffle "%host_name
+            elif command == 'ready':
+                
+                print "[%s] shuffle start : "%host_name, time.time()
+
+                requester = host_name
+                data_len = int(msg[:msg.find('**')])
+                msg = msg[msg.find('**')+2:]
+                lenn1 = int(msg[:msg.find('**')])
+                msg = msg[msg.find('**')+2:]
+                num_elems = int(msg[:msg.find('**')])
+               
+                data_str =''
+                for elem in range(lenn1):
+                    data_str += clisock.recv(msg_size)
+                    num_recv += 1       
+                
+
+                if key in args_dict : pass
+                else : args_dict[key] = {}
+
+                #if key in request_dict : pass
+                #else : request_dict[key] = []
+
+                request_dict[key] = []
+                data_miss_dict[key] = []
+                
+                for i in range(num_elems): 
+                    data_key= data_str[:data_str.find('**')]
+                    data_str= data_str[data_str.find('**')+2:]
+
+                    request_dict[key].append(data_key)
+                    if data_key not in data_dict_cache:                   
+                        data_miss_dict[key].append(data_key)
+                
+                #print "[%s] have"%host_name, data_dict_cache.keys()
+                #print "[%s] don't have"%host_name,data_miss_dict[key], len(data_miss_dict[key])
+
+
+                if len(data_miss_dict[key]) > 0:
+                    import cPickle as pickle
+                    data_str = pickle.dumps(data_miss_dict[key],-1)
+
+                    data_len = len(data_str)
+                    data_str += '0'*msg_size
+                    lenn =  len(data_str)/msg_size 
+
+                    msg_tag = "request"
+                    sending_str = "%s**%s**%s**%s**%s**"%(str(key),msg_tag,str(data_len),str(lenn),str(requester))
+                    sending_str += '0'*msg_size
  
+                    for elem in server_list:
+
+                        if elem != host_name:
+                            newsock = socket(AF_INET, SOCK_STREAM)
+                            newsock.connect((elem,4949))
+                            newsock.send(sending_str[:msg_size])
+
+                            for elem in range(lenn):
+                                newsock.send(data_str[elem*msg_size:(elem+1)*msg_size])
+                            newsock.close()
+
+                #print "[%s] ready 2 : "%host_name, time.time()
+
+            elif command == 'request':
+                data_len = int(msg[:msg.find('**')])
+                msg = msg[msg.find('**')+2:]
+                lenn = int(msg[:msg.find('**')])
+                msg = msg[msg.find('**')+2:]
+                requester = msg[:msg.find('**')] 
+
+                
+
+                data_str =''
+                for elem in range(lenn):
+                    data_str += clisock.recv(msg_size)
+                    num_recv += 1       
+
+                import cPickle as pickle
+                recv_dict = pickle.loads(data_str)
+
+                send_dict = []
+                for elem in recv_dict:
+                    if elem in data_dict_cache:
+                        send_dict.append(elem) 
+                
+
+                if len(send_dict) > 0:
+                    newsock = socket(AF_INET, SOCK_STREAM)
+                    newsock.connect((requester,4949))
+                    msg_tag = "transfer"
+                    sending_str = "%s**%s**%s**%s**"%(str(key),msg_tag,str(len(send_dict)),host_name)
+                    sending_str += '0'*msg_size
+                    newsock.send(sending_str[:msg_size])
+
+                    send_loc = server_list[requester]
+
+                    #data_str=''
+
+                    for elem in send_dict:
+                        print "[%s] now ready, send to [%s] : "%(host_name,requester), time.time()
+                        #data_str += elem
+                        #data_str += '**'
+
+                        #newsock.send(sending_str[:msg_size])
+                        #comm.send(elem,dest = send_loc,tag=39)
+                        #comm.send(data_dict_cache[elem],dest = send_loc,tag=40)
+
+                        comm.send([elem,data_dict_cache[elem]],dest = send_loc,tag=39)
+                        #comm.isend([elem,data_dict_cache[elem]],dest = send_loc,tag=39)
+
+
+                    newsock.close()
+                else :
+                    pass
+                
+
+            elif command == 'transfer':
+                
+                #print "[%s] trasfer start : "%host_name, time.time()
+                num_transfer = int(msg[:msg.find('**')])
+                msg = msg[msg.find('**')+2:]
+                sender = msg[:msg.find('**')]
+                recv_loc = server_list[sender]
+
+                for i in range(num_transfer):
+                    print "[%s] now ready, recv from [%s] : "%(host_name,sender), time.time()
+                    data_key,data_str = comm.recv(source = recv_loc,tag=39)
+                    #req = comm.irecv(source = recv_loc,tag=39)
+                    #data_key, data_str = req.wait()
+                    #data_key = comm.recv(source = recv_loc,tag=39)
+                    #data_str = comm.recv(source = recv_loc,tag=40)
+
+                    #if data_key in data_dict_cache: pass
+                    #else: data_dict_cache[data_key] = data_str
+                    data_dict_cache[data_key] = data_str
+                    data_miss_dict[key].remove(data_key)
+                #print "[%s] trasfer end : "%(host_name), time.time()
+                
+                
+    
+            elif command == 'check':
+                
+                
+                if len(data_miss_dict[key]) > 0:
+                    sending_str = "none**"
+                else :
+                    sending_str = "done**"
+                    print "[%s] shuffle end: "%host_name, time.time()
+                
+                sending_str += '0'*msg_size
+                clisock.send(sending_str[:msg_size])
+                
+
+                if False:
+                    """
+                    data_string =""
+       
+                    new_key = id_generator() 
+ 
+                    args_dict[new_key]={}
+                    
+                    for data_key in request_dict[key]:
+                        array_info , array_str = data_dict_cache[data_key] 
+
+                        data_string += array_str
+                     
+                        if i == 0:
+
+                            import cPickle as pickle
+                            shape_dict= pickle.loads(array_info)
+                            args_dict[new_key]['indata_shape'] = shape_dict['indata_shape']
+                            args_dict[new_key]['indata_type']  = shape_dict['indata_type']
+                            args_dict[new_key]['data_halo']    = 0
+                            args_dict[new_key]['indata_num']   = len(request_dict[key])
+                            args_dict[new_key]['target_id']    = 0
+                
+
+                    data_dict[new_key] = data_string
+                    #data_dict_cache={}
+                    sending_str = "%s**"(new_key)
+                    sending_str += '0'*msg_size
+                    clisock.send(sending_str[:msg_size])
+                    """
             elif command == 'count':
                 block_num += 1 
                 #pass
