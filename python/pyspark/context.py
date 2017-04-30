@@ -570,7 +570,7 @@ class SparkContext(object):
 
             return self.vispark(target_rdd=tmp_RDD,path=path)
 
-    def binaryFiles(self, path, minPartitions=None):
+    def binaryFiles(self, path, minPartitions=None, tag =None):
         """
         .. note:: Experimental
 
@@ -583,9 +583,15 @@ class SparkContext(object):
         .. note:: Small files are preferred, large file is also allowable, but
             may cause bad performance.
         """
-        minPartitions = minPartitions or self.defaultMinPartitions
-        return RDD(self._jsc.binaryFiles(path, minPartitions), self,
-                   PairDeserializer(UTF8Deserializer(), NoOpSerializer()))
+        if tag==None :
+            minPartitions = minPartitions or self.defaultMinPartitions
+            return RDD(self._jsc.binaryFiles(path, minPartitions), self,
+                       PairDeserializer(UTF8Deserializer(), NoOpSerializer()))
+        elif tag=='VISPARK' :
+            minPartitions = minPartitions or self.defaultMinPartitions
+            tmp_RDD= RDD(self._jsc.binaryFiles(path, minPartitions), self,
+                       PairDeserializer(UTF8Deserializer(), NoOpSerializer()))
+            return self.vispark(target_rdd=tmp_RDD,path=path)
 
     def binaryRecords(self, path, recordLength):
         """

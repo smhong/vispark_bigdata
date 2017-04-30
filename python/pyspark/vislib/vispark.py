@@ -53,7 +53,7 @@ class VisparkRDD(object):
         if raw_to_array == True:
  
             ImageName = path[path.rfind('/')+1:]
-            client = InsecureClient('http://emerald1:50070',user=getpass.getuser())
+            client = InsecureClient('http://dumbo009:50070',user=getpass.getuser())
 
             ImgDim = {}
             ImgSplit = {}
@@ -114,7 +114,7 @@ class VisparkRDD(object):
     def read_meta(self, path, halo=0):
         #ImageName = path[path.rfind('/')+1:]
         ImageName = path[path.rfind('/')+1:]
-        client = InsecureClient('http://emerald1:50070',user=getpass.getuser())
+        client = InsecureClient('http://dumbo009:50070',user=getpass.getuser())
 
         client.delete(ImageName + '/output', True)
         client.delete(ImageName + '/tmp', True)
@@ -499,7 +499,7 @@ class VisparkRDD(object):
                 #pass
                 BaseName = name
                 name='nast'
-                #client = InsecureClient('http://emerald1:50070', user=getpass.getuser())
+                #client = InsecureClient('http://dumbo009:50070', user=getpass.getuser())
 
                 #client.delete(BaseName, True)
                 #client.makedirs(BaseName)
