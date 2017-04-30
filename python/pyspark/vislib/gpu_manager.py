@@ -3,7 +3,7 @@ import math
 import sys
 from socket import *
 import subprocess
-from mpi4py import MPI
+#from mpi4py import MPI
 
 import os
 
@@ -16,9 +16,18 @@ if PYSPARK_PATH not in sys.path:
 if PY4J_PATH not in sys.path:
     sys.path.append(PY4J_PATH)
 
+#print sys.argv
+
 server_list={}
 server_list_file=sys.argv[1]
-server_rank = 0
+server_size = 0
+server_rank = -1
+host_name =sys.argv[2]
+#verify = int(sys.argv[3])
+pid_path = sys.argv[3]
+pid = os.getpid()
+log_path = "/tmp/vispark_worker_%d"%(pid)
+
 
 with open(server_list_file) as f:
     lines =f.readlines()
@@ -32,12 +41,16 @@ with open(server_list_file) as f:
             elem = elem[:-2]
        
         if len(elem) > 0:
-            elem = elem.replace('ib','emerald')
-            server_list[elem] = server_rank
-            server_rank += 1
+            #elem = elem.replace('ib','emerald')
+            
+            if elem == host_name:
+                server_rank = server_size
+
+            server_list[elem] = server_size
+            server_size += 1
 
 
-print server_list
+print server_list , host_name , server_rank
 
 
 
@@ -57,8 +70,7 @@ def get_proc_list():
 
     return lists
 
-pid = os.getpid()
-host_name = gethostname()
+#host_name = gethostname()
 while False:
     cnt = 0
     
@@ -97,44 +109,70 @@ class bcolors:
 
 def print_green(source):
     if logging:
-        print bcolors.OKGREEN,source, host_name,  bcolors.ENDC
+        with open(log_path,'a') as f:
+            f.write(source)
+
 
 def print_(source):
     if logging:
         print source, host_name
+        with open(log_path,'a') as f:
+            f.write(source)
+
 
 def print_red(source):
     if logging:
         print bcolors.FAIL,source, host_name, bcolors.ENDC
+        with open(log_path,'a') as f:
+            f.write(source)
+
 
 def print_blue(source):
     if logging:
         print bcolors.OKBLUE,source, host_name, bcolors.ENDC
+        with open(log_path,'a') as f:
+            f.write(source)
+
 
 def print_bblue(source):
     if logging:
         print bcolors.BOLD, bcolors.OKBLUE,source, host_name, bcolors.ENDC
+        with open(log_path,'a') as f:
+            f.write(source)
+
 
 def print_yellow(source):
     if logging:
         print bcolors.WARNING,source, host_name, bcolors.ENDC
+        with open(log_path,'a') as f:
+            f.write(source)
+
 
 def print_purple(source):
     if logging:
         print bcolors.HEADER,source, host_name, bcolors.ENDC
+        with open(log_path,'a') as f:
+            f.write(source)
+
 
 def print_bold(source):
     if logging:
         print bcolors.BOLD,source, host_name, bcolors.ENDC
+        with open(log_path,'a') as f:
+            f.write(source)
+
 
 def print_bred(source):
     if logging:
         print bcolors.BOLD, bcolors.FAIL, source, host_name, bcolors.ENDC
+        with open(log_path,'a') as f:
+            f.write(source)
 
 
-comm = MPI.COMM_WORLD
-mpi_rank = comm.Get_rank()
-mpi_size = comm.Get_size()
+
+#comm = MPI.COMM_WORLD
+#mpi_rank = comm.Get_rank()
+#mpi_size = comm.Get_size()
 
 
 import pycuda.driver as cuda
@@ -147,19 +185,19 @@ ctx = dev.make_context()
 stream, event={},{}
 
 if not logging:
-    print "[%s] Launch Process among %d/%d [Number of CUDA Device = %d] silence"%(host_name,mpi_rank,mpi_size,maxDevice)
+    print_("[%s] Launch Process among %d/%d [Number of CUDA Device = %d] silence"%(host_name,server_rank,server_size,maxDevice))
 else:
-    print "[%s] Launch Process among %d/%d [Number of CUDA Device = %d] chatter"%(host_name,mpi_rank,mpi_size,maxDevice)
+    print_( "[%s] Launch Process among %d/%d [Number of CUDA Device = %d] chatter"%(host_name,server_rank,server_size,maxDevice))
 
 port = int(4949)
 svrsock = socket(AF_INET, SOCK_STREAM)
 #svrsock = socket(AF_UNIX, SOCK_STREAM)
 #svrsock = socket(AF_UNIX, SOCK_DGRAM)
 #svrsock.setsockopt(SOL_SOCKET, TCP_NODELAY, 1)
-svrsock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+#svrsock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 #svrsock.setsockopt(SOL_SOCKET, SO_REUSEADDR, "ib0"+"\0")
 #svrsock.setsockopt(SOL_SOCKET, SO_REUSEADDR, "lo"+"\0")
-
+#svrsock.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
 svrsock.bind((host_name, port))
 
 #port = int(sys.argv[1])
@@ -173,10 +211,13 @@ svrsock.bind((host_name, port))
 #svrsock.bind(('127.0.0.1', port))
 #svrsock.bind("/tmp/gpu_manager")
 #svrsock.listen(0)
-#svrsock.listen(1024)
+svrsock.listen(64)
 #svrsock.listen(4096)
 #svrsock.listen(16)
-svrsock.listen(16)
+#svrsock.listen(4)
+
+with open(pid_path,'w') as f:
+    f.write(str(pid))
 
 #success=False
 #while success == False:
@@ -266,6 +307,7 @@ while loop:
     if True:
         clisock, addr = svrsock.accept()
 
+        print "Manager connected ", clisock, addr
         #print_( "Manager connected %s"%str(addr))
         
         while alive:
@@ -299,7 +341,7 @@ while loop:
                 svrsock.close()
                 ctx.detach()
                 #cuda.stop() 
-                MPI.Finalize()
+                #MPI.Finalize()
                 exit()     
         
             elif command == 'drop':
@@ -313,7 +355,7 @@ while loop:
                 loop = False
                 alive = False
                 svrsock.close()
-                MPI.Finalize()
+                #MPI.Finalize()
                 exit()     
 
 
@@ -349,7 +391,8 @@ while loop:
                 #sending_str = "done**"
                 #sending_str += '0'*msg_size
                 #clisock.send(sending_str[:msg_size])
-       
+                clisock.close() 
+                break
 
             if command == 'hit':
 
@@ -464,7 +507,6 @@ while loop:
           
                 print_blue("Manager bandwidth for (%s,%s) [%d/%d] : %f"%(str(command),key,dev_id,data_len,bandwidth))
 
- 
                 if key in args_dict : pass
                 else : args_dict[key] = {}
 
@@ -666,13 +708,14 @@ while loop:
                     bandwidth = (lenn1 + lenn2)*msg_size / (time.time() - temp_time) / (1048576.0)
                     print_blue("Manager bandwidth for (%s,%s) [%d] : %f"%(str(command),key,dev_id,bandwidth))
 
-
+                    clisock.close()
                     del args_dict[key]
                     del data_dict[key]
                     
                     print "[%s] recv end : "%host_name, time.time()
                     print "\n\n\n"
-                    
+                    break
+ 
             elif command == 'action':
                         
                 # send split_position location send_cnt data
@@ -727,8 +770,10 @@ while loop:
                     sending_str = "%s**"%(str(new_data_key))
                     sending_str += '0'*msg_size
                     clisock.send(sending_str[:msg_size])
+                    clisock.close()
                     
                     print "[%s] run ack: "%host_name, time.time()
+                    break
 
 
                     #print "Return  : %s"%key
@@ -955,6 +1000,8 @@ while loop:
                                 newsock.send(data_str[elem*msg_size:(elem+1)*msg_size])
                             newsock.close()
 
+                clisock.close()
+                break
                 #print "[%s] ready 2 : "%host_name, time.time()
 
             elif command == 'request':
@@ -988,7 +1035,7 @@ while loop:
                     sending_str += '0'*msg_size
                     newsock.send(sending_str[:msg_size])
 
-                    send_loc = server_list[requester]
+                    #send_loc = server_list[requester]
 
                     #data_str=''
 
@@ -1000,15 +1047,41 @@ while loop:
                         #newsock.send(sending_str[:msg_size])
                         #comm.send(elem,dest = send_loc,tag=39)
                         #comm.send(data_dict_cache[elem],dest = send_loc,tag=40)
+    
+                        args_str = data_dict_cache[elem][0]
+                        args_len = len(args_str)
+                        args_str += '0'*msg_size
+                        lenn1 = len(args_str)/msg_size
+    
+                        data_str = data_dict_cache[elem][1]
+                        #print type(data_str)
+                        data_len = len(data_str)
+                        data_str += '0'*msg_size
+                        lenn2 = len(data_str)/msg_size
 
-                        comm.send([elem,data_dict_cache[elem]],dest = send_loc,tag=39)
+                        #print type(data_str)
+                        sending_str = "%s**%s**%s**%s**%s**"%(elem,str(args_len),str(lenn1),str(data_len),str(lenn2))
+                        sending_str += '0'*msg_size
+                    
+                        newsock.send(sending_str[:msg_size])
+
+                        for i in range(lenn1): 
+                            newsock.send(args_str[i*msg_size:(i+1)*msg_size])
+
+                        for i in range(lenn2): 
+                            newsock.send(data_str[i*msg_size:(i+1)*msg_size])
+                        #print "[%s] now done, send to [%s] : "%(host_name,requester), time.time()
+                        #comm.send([elem,data_dict_cache[elem]],dest = send_loc,tag=39)
                         #comm.isend([elem,data_dict_cache[elem]],dest = send_loc,tag=39)
 
 
                     newsock.close()
                 else :
                     pass
-                
+ 
+                clisock.close()
+                break
+               
 
             elif command == 'transfer':
                 
@@ -1016,11 +1089,36 @@ while loop:
                 num_transfer = int(msg[:msg.find('**')])
                 msg = msg[msg.find('**')+2:]
                 sender = msg[:msg.find('**')]
-                recv_loc = server_list[sender]
+                #recv_loc = server_list[sender]
 
+                
                 for i in range(num_transfer):
                     print "[%s] now ready, recv from [%s] : "%(host_name,sender), time.time()
-                    data_key,data_str = comm.recv(source = recv_loc,tag=39)
+
+                    msg = clisock.recv(msg_size)
+                    data_key = msg[:msg.find('**')]
+                    msg = msg[msg.find('**')+2:]
+                    args_len = int(msg[:msg.find('**')])
+                    msg = msg[msg.find('**')+2:]
+                    lenn1 = int(msg[:msg.find('**')])
+                    msg = msg[msg.find('**')+2:]
+                    data_len = int(msg[:msg.find('**')])
+                    msg = msg[msg.find('**')+2:]
+                    lenn2 = int(msg[:msg.find('**')])
+
+                    args_str = ''
+                    for j in range(lenn1):
+                        args_str += clisock.recv(msg_size)
+
+                    data_str = ''
+                    for j in range(lenn2):
+                        data_str += clisock.recv(msg_size)
+                    
+                    args_str = args_str[:args_len]
+                    data_str = data_str[:data_len]
+                    #print "[%s] now done, recv from [%s] : "%(host_name,sender), time.time()
+    
+                    #data_key,data_str = comm.recv(source = recv_loc,tag=39)
                     #req = comm.irecv(source = recv_loc,tag=39)
                     #data_key, data_str = req.wait()
                     #data_key = comm.recv(source = recv_loc,tag=39)
@@ -1028,10 +1126,13 @@ while loop:
 
                     #if data_key in data_dict_cache: pass
                     #else: data_dict_cache[data_key] = data_str
-                    data_dict_cache[data_key] = data_str
+                    data_dict_cache[data_key] = [args_str,data_str]
                     data_miss_dict[key].remove(data_key)
                 #print "[%s] trasfer end : "%(host_name), time.time()
                 
+                clisock.close()
+                break
+
                 
     
             elif command == 'check':
@@ -1045,7 +1146,8 @@ while loop:
                 
                 sending_str += '0'*msg_size
                 clisock.send(sending_str[:msg_size])
-                
+                clisock.close()
+                break                
 
                 if False:
                     """

@@ -58,7 +58,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-host_name = gethostname()
+#host_name = gethostname()
 
 global_mod=None
 global_kernel_code=""
