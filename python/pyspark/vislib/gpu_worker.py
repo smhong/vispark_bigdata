@@ -25,7 +25,7 @@ _id_len = 24
 data_id_prefix = "GPU_"
 tag_id_prefix = "TAG_"
 
-msg_size =2*1024
+msg_size =512
 
 SPARK_HOME=os.environ["SPARK_HOME"]
 PYSPARK_PATH = "%s/python/"%SPARK_HOME
@@ -479,6 +479,7 @@ def send_data_seq(data_id,data_array,halo=0,address='127.0.0.1',port=int(3939)):
 
     import time
     #print_bblue("Send Seq: %s [%d]"%(data_id,len(data_array)))
+    print data_array
 
     shape_dict={}
     shape_dict['indata_shape'] = data_array[0].shape
@@ -748,6 +749,31 @@ def action_data(data_str,address='127.0.0.1',port=int(3939)):
             else:
                 return msg
 
+def sock_recv(clisock,lenn):
+   
+    #import StringIO 
+    #str_buf = StringIO.StringIO()
+    
+    import cStringIO 
+    str_buf = cStringIO.StringIO()
+
+    for i in xrange(lenn):
+        str_buf.write(clisock.recv(msg_size)) 
+
+    return str_buf.getvalue()
+
+
+def sock_recv1(clisock,lenn):
+    
+    str_buf = []
+    #i = 0
+    #while i < lenn:
+    for i in xrange(lenn):
+        str_buf.append(clisock.recv(msg_size)) 
+        #i += 1
+
+    return "".join(str_buf)
+
   
 def recv_data_new(data_str,address='127.0.0.1',port=int(3939)):
 
@@ -837,26 +863,29 @@ def recv_data_new(data_str,address='127.0.0.1',port=int(3939)):
                 #print "Recv size %d"%(data_len)
  
 
-                args_str = ''
+                #args_str = ''
  
                 temp_time = time.time()
                 recv_num = 0
-                while recv_num < lenn1:
-                    args_str += clisock.recv(msg_size)
+                #while recv_num < lenn1:
+                #    args_str += clisock.recv(msg_size)
+                args_str = sock_recv(clisock,lenn1)
+                
                     #recv_flag = data_str += clisock.recv(msg_size)
                     #if recv_flag == 0:
                     #    raise RuntimeError("Recv connection broken")
-                    recv_num += 1
+                    #recv_num += 1
               
-                data_str = ''
+                data_str = sock_recv(clisock,lenn2)
+                #data_str = ''
                 #for elem in range(lenn):
                 recv_num = 0
-                while recv_num < lenn2:
-                    data_str += clisock.recv(msg_size)
+                #while recv_num < lenn2:
+                #    data_str += clisock.recv(msg_size)
                     #recv_flag = data_str += clisock.recv(msg_size)
                     #if recv_flag == 0:
                     #    raise RuntimeError("Recv connection broken")
-                    recv_num += 1
+                #    recv_num += 1
  
                 bandwidth = (recv_num)*msg_size / (time.time() - temp_time) / (1048576.0)
                 #print_bold( "Worker bandwidth for (%s,%s) : %f"%("recv",data_id,bandwidth))

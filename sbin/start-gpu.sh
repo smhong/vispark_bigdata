@@ -44,6 +44,7 @@ do
     fi
 
     ssh $x python -u $PYGPU_MANAGER $SLAVES_FILE $x $pid &
+    #ssh $x python $PYGPU_MANAGER $SLAVES_FILE $x $pid &
 
 
     echo "Launch GPU server on $x"

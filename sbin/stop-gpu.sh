@@ -40,7 +40,7 @@ do
 
         if [[ $(ssh $x ps -p "$TARGET_ID" -o comm=) =~ "python" ]]; then
             python $PYGPU_KILL $x 4949 2048
-            ssh -q $x "kill -9 $pid"
+            ssh -q $x killall python
             echo "Killed GPU worker running as process $TARGET_ID."  
             continue
         fi

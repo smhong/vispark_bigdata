@@ -41,6 +41,9 @@ from socket import *
 from pyspark.vislib.gpu_worker import *
 from pyspark.vislib.worker_assist import generate_data_shape
 
+# GL RENDERING
+from pyspark.vislib.gl_worker import *
+
 __all__ = ["VisparkRDD"]
 result_cnt = 0
 
@@ -81,6 +84,17 @@ def read_meta(path, halo=0):
 
     #return data_shape, ImgDim
     return ImgDim, ImgSplit
+
+
+def vispark_gl_workrange(function_name, func_args= [], etc_args={}, work_range=[], uniforms={}, halo=0, comm_type='full', code=None, main_data={}, extern_code=None, output=[],path='', proto_type = True):
+    #for elem in main_data:
+        #if elem not in locals():
+            #locals()[elem] = main_data[elem]
+
+
+    # work_range : screen size
+    # output     : data type (always RGBA)
+    return {'function_name':function_name, 'func_args':func_args, 'etc_args': etc_args, 'uniforms': uniforms, 'code':code, 'extern_code':extern_code, 'output':output, 'work_range':work_range}
 
 
 def vispark_workrange(function_name, func_args= [], etc_args={}, work_range=[], halo=0, comm_type='full', code=None, main_data={}, num_iter=1, extern_code=None, output=[],path='', proto_type = True):
@@ -261,6 +275,33 @@ def evaluate_output(output,main_data={}):
 # Vispark transformation 
 
 
+def execGL(data, function_name, func_args= [], etc_args={}, uniforms={},  work_range={}, halo=0, comm_type='full', code=None, main_data={}, extern_code={}, output=[], profiler=Noprof):
+    #import time
+    profiler.start("execGL")
+   
+      
+    data_id,InGPU =  id_check(data)
+    
+
+    if InGPU is False:
+        _ ,data = send_data_gl(data_id,data, port=int(4950))
+    
+        
+    work_range = evaluate_work_range(work_range)
+    output     = evaluate_output(output)
+    
+
+    total_args = vispark_gl_workrange(function_name, func_args, etc_args, uniforms, work_range, halo, comm_type, code, main_data, extern_code=extern_code, output=output, proto_type = False)
+    
+ 
+    _ , data = run_gl(data_id,data,total_args)
+    
+    
+    profiler.stop("execGL")
+
+    return data 
+
+
 
 def execGPU(data, function_name, func_args= [], etc_args={}, work_range={}, halo=0, comm_type='full', code=None, main_data={}, numiter = 1, extern_code=None, output=[], profiler=Noprof):
 
@@ -389,13 +430,19 @@ def shuffleCombine(key,values):
 
     signal="check" 
   
-    reply = "none"
+    #reply = "none"
+    reply = send_signal(signal,tag)
     data_id = None
-
+    
+    cnt = 0
     while reply == "none":
+        if cnt > 5:
+            send_request(tag,values)
+            cnt = 0
+
         time.sleep(0.05)
         reply = send_signal(signal,tag)
-
+        cnt += 1
         print "Receive ", reply  
 
     return key
@@ -872,6 +919,19 @@ class VisparkRDD(object):
                 self._InGPU = False
        
             return self._rdd.map(lambda (key, data):(key,recv_data_new(data))).collect()
+        except:
+            pass
+
+        return self._rdd.collect()
+
+    def collect_gl(self):
+    
+        try :       
+            if self._InGPU == True:
+                self._rdd = self._rdd.map(lambda (key, data):recv_data_gl(key,data))
+                self._InGPU = False
+       
+            return self._rdd.map(lambda (key, data):(key,recv_data_gl(data))).collect()
         except:
             pass
 

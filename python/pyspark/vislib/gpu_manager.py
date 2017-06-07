@@ -263,7 +263,7 @@ num_recv =0
 
 #dpk_size = 16*1024
 #msg_size = 16*1024
-msg_size = 2*1024
+msg_size = 512
 #msg_size = 2*1024
 data_dict = {}
 data_cnt_dict = {}
@@ -307,7 +307,7 @@ while loop:
     if True:
         clisock, addr = svrsock.accept()
 
-        print "Manager connected ", clisock, addr
+        #print "[%s] Manager connected "%(host_name), addr
         #print_( "Manager connected %s"%str(addr))
         
         while alive:
@@ -361,9 +361,19 @@ while loop:
 
             dev_id = hash(key)%maxDevice
             dev = cuda.Device(dev_id)
-            print_green("Manager receive %s for %s [%d] "%(str(command),key,dev_id))
+            #print_green("Manager receive %s for %s [%d] "%(str(command),key,dev_id))
+            #print "[%s] Manager receive %s for %s [%d] "%(host_name,str(command),key,dev_id)
 
             if command == 'persist':
+
+                """
+                for elem in args_dict_cache.keys():
+                    try :
+                        del args_dict_cache[elem]
+                        del args_dict[elem]
+                    except:
+                        pass
+                """
 
                 if 'vm_indata' not in args_dict[key]:
                     #print_blue("Upload in Persist %s"%(key))
@@ -490,16 +500,18 @@ while loop:
                 #print args_len,lenn1,data_len,lenn2
  
                 temp_time = time.time()
-                args_str =''
-                for elem in range(lenn1):
-                    args_str += clisock.recv(msg_size)
-                    num_recv += 1       
- 
+                #args_str =''
+                #for elem in range(lenn1):
+                #    args_str += clisock.recv(msg_size)
+                #    num_recv += 1       
+                args_str = sock_recv(clisock,lenn1)
+                data_str = sock_recv(clisock,lenn2)
+        
 
-                data_str =''
-                for elem in range(lenn2):
-                    data_str += clisock.recv(msg_size)
-                    num_recv += 1       
+                #data_str =''
+                #for elem in range(lenn2):
+                #    data_str += clisock.recv(msg_size)
+                #    num_recv += 1       
                 bandwidth = (lenn1 + lenn2)*msg_size / (time.time() - temp_time) / (1048576.0)
                 
                 args_str = args_str[:args_len]
@@ -530,11 +542,12 @@ while loop:
                 msg = msg[msg.find('**')+2:]
                 num_elems = int(msg[:msg.find('**')])
 
-                data_str =''
-                for elem in range(lenn1):
-                    data_str += clisock.recv(msg_size)
-                    num_recv += 1       
+                #data_str =''
+                #for elem in range(lenn1):
+                #    data_str += clisock.recv(msg_size)
+                #    num_recv += 1       
 
+                data_str = sock_recv(clisock,lenn1)
                 if key in args_dict : pass
                 else : args_dict[key] = {}
 
@@ -570,7 +583,7 @@ while loop:
                         newsock.send(sending_str[:msg_size])
                 """
 
-                data_string = ""
+                data_buf = []
 
                 i = 0
 
@@ -578,7 +591,8 @@ while loop:
  
                     array_info , array_str = data_dict_cache[data_key] 
 
-                    data_string += array_str
+                    #data_string += array_str
+                    data_buf.append(array_str)
                     
                     if i == 0:
 
@@ -593,10 +607,12 @@ while loop:
                         i+=1
                 
                 stream[key] = cuda.Stream()
-
+                data_string = "".join(data_buf)
                 data_dict[key] = data_string
-                #data_dict_cache={}
                 
+                for data_key in key_list:
+                    del data_dict_cache[data_key]
+                #data_dict_cache={}
                 #print "[%s] send_seq 2 end : "%host_name, time.time()
 
                                 
@@ -617,16 +633,18 @@ while loop:
                 lenn2 = int(msg[:msg.find('**')])
                 
                 temp_time = time.time()
-                args_str =''
-                for elem in range(lenn1):
-                    args_str += clisock.recv(msg_size)
-                    num_recv += 1       
+                #args_str =''
+                #for elem in range(lenn1):
+                #    args_str += clisock.recv(msg_size)
+                #    num_recv += 1       
  
+                args_str = sock_recv(clisock,lenn1)
+                data_str = sock_recv(clisock,lenn2)
 
-                data_str =''
-                for elem in range(lenn2):
-                    data_str += clisock.recv(msg_size)
-                    num_recv += 1       
+                #data_str =''
+                #for elem in range(lenn2):
+                #    data_str += clisock.recv(msg_size)
+                #    num_recv += 1       
                 bandwidth = (lenn1 + lenn2)*msg_size / (time.time() - temp_time) / (1048576.0)
                 
                 args_str = args_str[:args_len]
@@ -860,10 +878,11 @@ while loop:
                 lenn = int(msg[:msg.find('**')])
                 msg = msg[msg.find('**')+2:]
 
-                args_str =''
-                for elem in range(lenn):
-                    args_str += clisock.recv(msg_size)
-                    num_recv += 1       
+                #args_str =''
+                #for elem in range(lenn):
+                #    args_str += clisock.recv(msg_size)
+                args_str = sock_recv(clisock,lenn)
+                #    num_recv += 1       
                 args_str = args_str[:args_len]
  
                 #args_dict[key] = reading_args(args_str)
@@ -941,7 +960,7 @@ while loop:
                 #print "[%s] Finish Shuffle "%host_name
             elif command == 'ready':
                 
-                print "[%s] shuffle start : "%host_name, time.time()
+                print "[%s] shuffle start 1: "%host_name, time.time()
 
                 requester = host_name
                 data_len = int(msg[:msg.find('**')])
@@ -950,10 +969,11 @@ while loop:
                 msg = msg[msg.find('**')+2:]
                 num_elems = int(msg[:msg.find('**')])
                
-                data_str =''
-                for elem in range(lenn1):
-                    data_str += clisock.recv(msg_size)
-                    num_recv += 1       
+                #data_str =''
+                #for elem in range(lenn1):
+                #    data_str += clisock.recv(msg_size)
+                #    num_recv += 1       
+                data_str = sock_recv(clisock,lenn1)
                 
 
                 if key in args_dict : pass
@@ -1001,6 +1021,7 @@ while loop:
                             newsock.close()
 
                 clisock.close()
+                print "[%s] shuffle start 2: "%host_name, time.time()
                 break
                 #print "[%s] ready 2 : "%host_name, time.time()
 
@@ -1013,10 +1034,11 @@ while loop:
 
                 
 
-                data_str =''
-                for elem in range(lenn):
-                    data_str += clisock.recv(msg_size)
-                    num_recv += 1       
+                data_str = sock_recv(clisock,lenn)
+                #data_str =''
+                #for elem in range(lenn):
+                #    data_str += clisock.recv(msg_size)
+                #    num_recv += 1       
 
                 import cPickle as pickle
                 recv_dict = pickle.loads(data_str)
@@ -1040,7 +1062,7 @@ while loop:
                     #data_str=''
 
                     for elem in send_dict:
-                        print "[%s] now ready, send to [%s] : "%(host_name,requester), time.time()
+                        #print "[%s] now ready, send to 1[%s] : "%(host_name,requester), time.time()
                         #data_str += elem
                         #data_str += '**'
 
@@ -1064,12 +1086,26 @@ while loop:
                         sending_str += '0'*msg_size
                     
                         newsock.send(sending_str[:msg_size])
+                        #print "[%s] now ready, send to 2[%s] : "%(host_name,requester), time.time()
 
-                        for i in range(lenn1): 
-                            newsock.send(args_str[i*msg_size:(i+1)*msg_size])
+                        #for i in xrange(lenn1): 
+                        #i = 0
+                        #while i < lenn1:
+                        #    newsock.send(args_str[i*msg_size:(i+1)*msg_size])
+                        #    i += 1
+                        
+                        #print "[%s] now ready, send to 3[%s] : "%(host_name,requester), time.time()
 
-                        for i in range(lenn2): 
-                            newsock.send(data_str[i*msg_size:(i+1)*msg_size])
+                        #for i in xrange(lenn2): 
+                        
+                        #i = 0
+                        #while i < lenn2:
+                        #    newsock.send(data_str[i*msg_size:(i+1)*msg_size])
+                        #    i += 1
+                        newsock.send(args_str[:lenn1*msg_size])
+                        newsock.send(data_str[:lenn2*msg_size])
+                        
+                        del data_dict_cache[elem]
                         #print "[%s] now done, send to [%s] : "%(host_name,requester), time.time()
                         #comm.send([elem,data_dict_cache[elem]],dest = send_loc,tag=39)
                         #comm.isend([elem,data_dict_cache[elem]],dest = send_loc,tag=39)
@@ -1092,10 +1128,16 @@ while loop:
                 #recv_loc = server_list[sender]
 
                 
+                print "[%s] shuffle start 2.5: "%host_name, time.time()
                 for i in range(num_transfer):
-                    print "[%s] now ready, recv from [%s] : "%(host_name,sender), time.time()
+                    #print "[%s] now ready, recv from 1[%s] : "%(host_name,sender), time.time()
 
+                    print "[%s] shuffle start 2.55: "%host_name, time.time()
                     msg = clisock.recv(msg_size)
+                    
+                    #print "[%s] now ready, recv from 2[%s] : "%(host_name,sender), time.time()
+                    print "[%s] shuffle start 2.6: "%host_name, time.time()
+
                     data_key = msg[:msg.find('**')]
                     msg = msg[msg.find('**')+2:]
                     args_len = int(msg[:msg.find('**')])
@@ -1106,14 +1148,31 @@ while loop:
                     msg = msg[msg.find('**')+2:]
                     lenn2 = int(msg[:msg.find('**')])
 
-                    args_str = ''
-                    for j in range(lenn1):
-                        args_str += clisock.recv(msg_size)
+                    #args_str = ''
+                    #for j in xrange(lenn1):
+                    #j = 0
+                    #while j < lenn1:
+                    #    args_str += clisock.recv(msg_size)
+                    #    j += 1
+                    print "[%s] shuffle start 2.7: "%host_name, time.time()
 
-                    data_str = ''
-                    for j in range(lenn2):
-                        data_str += clisock.recv(msg_size)
-                    
+                    args_str = sock_recv(clisock,lenn1)
+                    print "[%s] shuffle start 2.8: "%host_name, time.time()
+                    data_str = sock_recv(clisock,lenn2)
+                    print "[%s] shuffle start 2.9: "%host_name, time.time()
+                    #data_str = '0'*lenn2*msg_size
+                    #for j in xrange(lenn2):
+                    #str_buf = []
+                    #j = 0
+                    #while j < lenn2:
+                        #data_str += clisock.recv(msg_size)
+                    #    recv_buf = clisock.recv(msg_size)
+                    #    str_buf.append(recv_buf) 
+                    #    j += 1
+                    #
+                    #data_str = "".join(str_buf)
+                    #print "[%s] now ready, recv from 3[%s] : "%(host_name,sender), time.time()
+
                     args_str = args_str[:args_len]
                     data_str = data_str[:data_len]
                     #print "[%s] now done, recv from [%s] : "%(host_name,sender), time.time()
@@ -1128,9 +1187,11 @@ while loop:
                     #else: data_dict_cache[data_key] = data_str
                     data_dict_cache[data_key] = [args_str,data_str]
                     data_miss_dict[key].remove(data_key)
+                    #print "[%s] now ready, recv from 4[%s] : "%(host_name,sender), time.time()
                 #print "[%s] trasfer end : "%(host_name), time.time()
                 
                 clisock.close()
+                print "[%s] shuffle start 3: "%host_name, time.time()
                 break
 
                 
@@ -1140,6 +1201,7 @@ while loop:
                 
                 if len(data_miss_dict[key]) > 0:
                     sending_str = "none**"
+                    print "[%s] shuffle not end: "%host_name, time.time()
                 else :
                     sending_str = "done**"
                     print "[%s] shuffle end: "%host_name, time.time()

@@ -1,2 +1,2 @@
 CUDA_ARCH=sm_52
-LOG=console
+#LOG=console
