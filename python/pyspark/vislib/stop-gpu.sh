@@ -1,0 +1,1 @@
+/home/smhong/Projects/vispark/sbin/stop-gpu.sh
